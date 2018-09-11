@@ -24,6 +24,21 @@ SDL_GLContext mainContext;
 GLuint rendering_program;
 GLuint vertex_array_object;
 
+struct vertex
+{
+	// Position
+	float x;
+	float y;
+	float z;
+	float w;
+
+	// Color
+	float r;
+	float g;
+	float b;
+	float a;
+};
+
 int check_program(GLuint program)
 {
 	GLint isLinked = 0;
@@ -263,41 +278,46 @@ bool Init()
 	}
 
 	//create the vertex buffer
-	GLuint buffer[2];
+	GLuint buffer;
 
-	static const GLfloat positions[] =
+	static const vertex vertices[] =
 	{
-		0.25, -0.25, 0.5, 1.0,
-		-0.25, -0.25, 0.5, 1.0,
-		0.25, 0.25, 0.5, 1.0
+		{ 0.25, -0.25, 0.5, 1.0, 1.0, 0.0, 0.0, 1.0},
+		{ -0.25, -0.25, 0.5, 1.0, 0.0, 1.0, 0.0, 1.0},
+		{ 0.25, 0.25, 0.5, 1.0,	0.0, 0.0, 1.0, 1.0}
 	};
 
-	static const GLfloat colors[] =
-	{
-		1.0, 0.0, 0.0, 1.0,
-		1.0, 1.0, 0.0, 1.0,
-		1.0, 0.0, 1.0, 1.0
-	};
+	//static const GLfloat positions[] =
+	//{
+	//	0.25, -0.25, 0.5, 1.0,
+	//	-0.25, -0.25, 0.5, 1.0,
+	//	0.25, 0.25, 0.5, 1.0
+	//};
+
+	//static const GLfloat colors[] =
+	//{
+	//	1.0, 0.0, 0.0, 1.0,
+	//	0.0, 1.0, 0.0, 1.0,
+	//	0.0, 0.0, 1.0, 1.0
+	//};
 
 	glCreateVertexArrays(1, &vertex_array_object);
-	glCreateBuffers(2, &buffer[0]);
+	glCreateBuffers(1, &buffer);
 
 	glBindVertexArray(vertex_array_object);
 
 
-	glNamedBufferStorage(buffer[0], sizeof(positions), positions, 0);
+	glNamedBufferStorage(buffer, sizeof(vertices), vertices, 0);
 
-	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer[0], 0, sizeof(glm::vec4));
-	glVertexArrayAttribFormat(vertex_array_object, 0, 4, GL_FLOAT, GL_FALSE, 0);
+	glVertexArrayAttribFormat(vertex_array_object, 0, 4, GL_FLOAT, GL_FALSE, offsetof(vertex, x));
 	glVertexArrayAttribBinding(vertex_array_object, 0, 0);
-	glEnableVertexArrayAttrib(vertex_array_object, 0);
+	glEnableVertexAttribArray(0);
 
-	glNamedBufferStorage(buffer[1], sizeof(colors), colors, 0);
-
-	glVertexArrayVertexBuffer(vertex_array_object, 1, buffer[1], 0, sizeof(glm::vec4));
-	glVertexArrayAttribFormat(vertex_array_object, 1, 4, GL_FLOAT, GL_FALSE, 0);
-	glVertexArrayAttribBinding(vertex_array_object, 1, 1);
+	glVertexArrayAttribFormat(vertex_array_object, 1, 4, GL_FLOAT, GL_FALSE, offsetof(vertex, r));
+	glVertexArrayAttribBinding(vertex_array_object, 1, 0);
 	glEnableVertexAttribArray(1);
+
+	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer, 0, sizeof(vertex));
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 3);
