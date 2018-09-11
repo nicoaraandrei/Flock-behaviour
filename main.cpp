@@ -7,6 +7,7 @@
 #include <time.h>
 #include <vector>
 #include <iostream>
+#include <glm\glm.hpp>
 //#include "mouse.h"
 //#include "keyboard.h"
 
@@ -64,20 +65,18 @@ GLuint compile_shaders(void)
 	{
 		"#version 450 core \n"
 		"\n"
-		"layout (location = 0) in vec4 offset; \n"
-		"layout (location = 1) in vec4 color; \n"
+		"layout (location = 0) in vec4 position; \n"
+		"layout (location = 1) in vec4 offset; \n"
+		"layout (location = 2) in vec4 color; \n"
 		"out vec4 vs_color; \n"
 		"\n"
 		"void main(void) \n"
 		"{ \n"
-		"   const vec4 vertices[3] = vec4[3](vec4( 0.25, -0.25, 0.5, 1.0), \n"
-		"									 vec4( -0.25, -0.25, 0.5, 1.0), \n"
-		"									 vec4( 0.25, 0.25, 0.5, 1.0)); \n"
 		"   const vec4 colors[3] = vec4[3](vec4( 1.0, 0.0, 0.0, 1.0), \n"
 		"									 vec4( 0.0, 1.0, 0.0, 1.0), \n"
 		"									 vec4( 0.0, 0.0, 1.0, 1.0)); \n"
 		"\n"
-		"   gl_Position = vertices[gl_VertexID]+offset; \n"
+		"   gl_Position = position+offset; \n"
 		"   vs_color = colors[gl_VertexID]; \n"
 		"} \n"
 	};
@@ -201,8 +200,9 @@ GLuint compile_shaders(void)
 
 void SetOpenGLAttributes()
 {
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 }
 
@@ -232,6 +232,9 @@ bool Init()
 		cout << "SDL initialization succeeded!\n";
 	}
 
+	SetOpenGLAttributes();
+
+
 	mainWindow = SDL_CreateWindow("Simple program", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
 
 	if (!mainWindow)
@@ -241,9 +244,15 @@ bool Init()
 		return false;
 	}
 
-	mainContext = SDL_GL_CreateContext(mainWindow);
 
-	SetOpenGLAttributes();
+	mainContext = SDL_GL_CreateContext(mainWindow);
+	if (!mainContext)
+	{
+		glGetError();
+		CheckSDLError(__LINE__);
+		return false;
+	}
+
 
 	SDL_GL_SetSwapInterval(1);
 
@@ -257,8 +266,30 @@ bool Init()
 		return false;
 	}
 
+	//create the vertex buffer
+	GLuint buffer;
+	glCreateBuffers(1, &buffer);
+	glNamedBufferStorage(buffer, 1024 * 1024, NULL, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+
+	static const float data[] = 
+	{
+		0.25, -0.25, 0.5, 1.0,
+		-0.25, -0.25, 0.5, 1.0,
+		0.25, 0.25, 0.5, 1.0
+	};
+
+	//*map buffer if you want to copy the data manually inside buffer
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(data), data);
+
+	//create the VAO to be used inside vertex shader
 	glCreateVertexArrays(1, &vertex_array_object);
 	glBindVertexArray(vertex_array_object);
+
+	//bind the vertex buffer into VAO
+	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer, 0, sizeof(glm::vec4));
+	glVertexArrayAttribFormat(vertex_array_object, 0, 4, GL_FLOAT, GL_FALSE, 0);
+	glEnableVertexArrayAttrib(vertex_array_object, 0);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 3);
@@ -296,8 +327,8 @@ void RunGame()
 			(float)cos(currentTime / 1000) * 0.6f,
 			0.0f, 0.0f };
 
-		glVertexAttrib4fv(0, attrib);
-		glVertexAttrib4fv(1, color);
+		glVertexAttrib4fv(1, attrib);
+		glVertexAttrib4fv(2, color);
 
 		glPointSize(5.0f);
 		//for the tesselation thing
@@ -319,9 +350,9 @@ void RunGame()
 
 void Cleanup()
 {
+	glDisableVertexArrayAttrib(vertex_array_object, 0);
 	glDeleteVertexArrays(1, &vertex_array_object);
 	glDeleteProgram(rendering_program);
-	glDeleteVertexArrays(1, &vertex_array_object);
 
 	SDL_GL_DeleteContext(mainContext);
 	SDL_DestroyWindow(mainWindow);
