@@ -66,18 +66,14 @@ GLuint compile_shaders(void)
 		"#version 450 core \n"
 		"\n"
 		"layout (location = 0) in vec4 position; \n"
-		"layout (location = 1) in vec4 offset; \n"
-		"layout (location = 2) in vec4 color; \n"
+		"layout (location = 1) in vec4 color; \n"
+		"layout (location = 2) in vec4 offset; \n"
 		"out vec4 vs_color; \n"
 		"\n"
 		"void main(void) \n"
 		"{ \n"
-		"   const vec4 colors[3] = vec4[3](vec4( 1.0, 0.0, 0.0, 1.0), \n"
-		"									 vec4( 0.0, 1.0, 0.0, 1.0), \n"
-		"									 vec4( 0.0, 0.0, 1.0, 1.0)); \n"
-		"\n"
 		"   gl_Position = position+offset; \n"
-		"   vs_color = colors[gl_VertexID]; \n"
+		"   vs_color = color; \n"
 		"} \n"
 	};
 
@@ -267,29 +263,41 @@ bool Init()
 	}
 
 	//create the vertex buffer
-	GLuint buffer;
-	glCreateBuffers(1, &buffer);
-	glNamedBufferStorage(buffer, 1024 * 1024, NULL, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	GLuint buffer[2];
 
-	static const float data[] = 
+	static const GLfloat positions[] =
 	{
 		0.25, -0.25, 0.5, 1.0,
 		-0.25, -0.25, 0.5, 1.0,
 		0.25, 0.25, 0.5, 1.0
 	};
 
-	//*map buffer if you want to copy the data manually inside buffer
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(data), data);
+	static const GLfloat colors[] =
+	{
+		1.0, 0.0, 0.0, 1.0,
+		1.0, 1.0, 0.0, 1.0,
+		1.0, 0.0, 1.0, 1.0
+	};
 
-	//create the VAO to be used inside vertex shader
 	glCreateVertexArrays(1, &vertex_array_object);
+	glCreateBuffers(2, &buffer[0]);
+
 	glBindVertexArray(vertex_array_object);
 
-	//bind the vertex buffer into VAO
-	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer, 0, sizeof(glm::vec4));
+
+	glNamedBufferStorage(buffer[0], sizeof(positions), positions, 0);
+
+	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer[0], 0, sizeof(glm::vec4));
 	glVertexArrayAttribFormat(vertex_array_object, 0, 4, GL_FLOAT, GL_FALSE, 0);
+	glVertexArrayAttribBinding(vertex_array_object, 0, 0);
 	glEnableVertexArrayAttrib(vertex_array_object, 0);
+
+	glNamedBufferStorage(buffer[1], sizeof(colors), colors, 0);
+
+	glVertexArrayVertexBuffer(vertex_array_object, 1, buffer[1], 0, sizeof(glm::vec4));
+	glVertexArrayAttribFormat(vertex_array_object, 1, 4, GL_FLOAT, GL_FALSE, 0);
+	glVertexArrayAttribBinding(vertex_array_object, 1, 1);
+	glEnableVertexAttribArray(1);
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 3);
@@ -323,12 +331,12 @@ void RunGame()
 
 		glUseProgram(rendering_program);
 
-		GLfloat attrib[] = { (float)sin(currentTime / 1000) * 0.5f,
+		GLfloat offsetData[] = { (float)sin(currentTime / 1000) * 0.5f,
 			(float)cos(currentTime / 1000) * 0.6f,
 			0.0f, 0.0f };
 
-		glVertexAttrib4fv(1, attrib);
-		glVertexAttrib4fv(2, color);
+		glVertexAttrib4fv(2, offsetData);
+
 
 		glPointSize(5.0f);
 		//for the tesselation thing
