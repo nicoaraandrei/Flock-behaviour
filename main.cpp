@@ -8,13 +8,15 @@
 #include <vector>
 #include <iostream>
 #include <glm\glm.hpp>
+#include <glm\gtc\matrix_transform.hpp>
+#include <glm\gtc\type_ptr.hpp>
 //#include "mouse.h"
 //#include "keyboard.h"
 
 #define MAX_ACCELERATION  0.1f
 
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
 #define MAX_FPS 60
 
 using namespace std;
@@ -23,6 +25,8 @@ SDL_Window *mainWindow;
 SDL_GLContext mainContext;
 GLuint rendering_program;
 GLuint vertex_array_object;
+
+glm::mat4 proj_matrix = glm::mat4(1.0f);
 
 struct vertex
 {
@@ -78,23 +82,26 @@ GLuint compile_shaders(void)
 
 	static const GLchar *vertex_shader_source[] =
 	{
-		"#version 450 core \n"
+		"#version 410 core \n"
 		"\n"
-		"layout (location = 0) in vec4 position; \n"
-		"layout (location = 1) in vec4 color; \n"
-		"layout (location = 2) in vec4 offset; \n"
-		"out vec4 vs_color; \n"
+		"in vec4 position; \n"
+		"out VS_OUT \n"
+		"{ \n"
+		"	vec4 color; \n"
+		"} vs_out; \n"
 		"\n"
+		"uniform mat4 mv_matrix; \n"
+		"uniform mat4 proj_matrix; \n"
 		"void main(void) \n"
 		"{ \n"
-		"   gl_Position = position+offset; \n"
-		"   vs_color = color; \n"
+		"   gl_Position = proj_matrix * mv_matrix * position; \n"
+		"   vs_out.color = position * 2.0 + vec4(0.5, 0.5, 0.5, 0.0); \n"
 		"} \n"
 	};
 
 	static const GLchar *tesselation_control_shader_source[] =
 	{
-		"#version 450 core \n"
+		"#version 410 core \n"
 		"\n"
 		"layout (vertices = 3) out; \n"
 		"\n"
@@ -116,7 +123,7 @@ GLuint compile_shaders(void)
 
 	static const GLchar *tesselation_evaluation_shader_source[] =
 	{
-		"#version 450 core \n"
+		"#version 410 core \n"
 		"\n"
 		"layout (triangles, equal_spacing, cw) in; \n"
 		"\n"
@@ -133,7 +140,7 @@ GLuint compile_shaders(void)
 
 	static const GLchar *geometry_shader_source[] =
 	{
-		"#version 450 core \n"
+		"#version 410 core \n"
 		"\n"
 		"layout (triangles) in; \n"
 		"layout (points, max_vertices = 3) out; \n"
@@ -155,14 +162,17 @@ GLuint compile_shaders(void)
 
 	static const GLchar *fragment_shader_source[] =
 	{
-		"#version 450 core \n"
+		"#version 410 core \n"
 		"\n"
-		"in vec4 vs_color; \n"
 		"out vec4 color; \n"
+		"in VS_OUT \n"
+		"{ \n"
+		"	vec4 color; \n"
+		"} fs_in; \n"
 		"\n"
 		"void main(void) \n"
 		"{ \n"
-		"   color =  vs_color; \n"
+		"   color =  fs_in.color; \n"
 		"} \n"
 	};
 
@@ -170,7 +180,7 @@ GLuint compile_shaders(void)
 	glShaderSource(vertex_shader, 1, vertex_shader_source, NULL);
 	glCompileShader(vertex_shader);
 
-	tesselation_control_shader = glCreateShader(GL_TESS_CONTROL_SHADER);
+	/*tesselation_control_shader = glCreateShader(GL_TESS_CONTROL_SHADER);
 	glShaderSource(tesselation_control_shader, 1, tesselation_control_shader_source, NULL);
 	glCompileShader(tesselation_control_shader);
 
@@ -180,7 +190,7 @@ GLuint compile_shaders(void)
 
 	geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
 	glShaderSource(geometry_shader, 1, geometry_shader_source, NULL);
-	glCompileShader(geometry_shader);
+	glCompileShader(geometry_shader);*/
 
 	fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragment_shader, 1, fragment_shader_source, NULL);
@@ -196,9 +206,9 @@ GLuint compile_shaders(void)
 	glLinkProgram(program);
 
 	glDeleteShader(vertex_shader);
-	glDeleteShader(tesselation_control_shader);
+	/*glDeleteShader(tesselation_control_shader);
 	glDeleteShader(tesselation_evaluation_shader);
-	glDeleteShader(geometry_shader);
+	glDeleteShader(geometry_shader);*/
 	glDeleteShader(fragment_shader);
 
 	if (!check_program(program))
@@ -211,8 +221,8 @@ GLuint compile_shaders(void)
 
 void SetOpenGLAttributes()
 {
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 }
@@ -232,6 +242,29 @@ void CheckSDLError(int line = -1)
 	}
 }
 
+glm::mat4 calculateProjMatrix(float fovy, int windowWidth, int windowHeight, float near, float far)
+{
+	float aspect = (float)windowWidth / (float)windowHeight;
+	return glm::perspective(fovy, aspect, near, far);
+}
+
+static int onResize(void* data, SDL_Event* event)
+{
+	if (event->type == SDL_WINDOWEVENT && event->window.event == SDL_WINDOWEVENT_RESIZED)
+	{
+		SDL_Window* win = SDL_GetWindowFromID(event->window.windowID);
+		if (win == (SDL_Window*)data)
+		{
+			int windowWidth, windowHeight;
+			SDL_GetWindowSize(win, &windowWidth, &windowHeight);
+			glViewport(0, 0, windowWidth, windowHeight);
+			proj_matrix = calculateProjMatrix(50.f, windowWidth, windowHeight, 0.1f, 1000.0f);
+			printf("resizing.....\n");
+		}
+	}
+	return 0;
+}
+
 bool Init()
 {
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
@@ -246,7 +279,7 @@ bool Init()
 	SetOpenGLAttributes();
 
 
-	mainWindow = SDL_CreateWindow("Simple program", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
+	mainWindow = SDL_CreateWindow("Simple program", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	if (!mainWindow)
 	{
@@ -255,6 +288,11 @@ bool Init()
 		return false;
 	}
 
+	int windowWidth, windowHeight;
+	SDL_GetWindowSize(mainWindow, &windowWidth, &windowHeight);
+	proj_matrix = calculateProjMatrix(50.f, windowWidth, windowHeight, 0.1f, 1000.0f);
+
+	SDL_AddEventWatch(onResize, mainWindow);
 
 	mainContext = SDL_GL_CreateContext(mainWindow);
 	if (!mainContext)
@@ -265,10 +303,15 @@ bool Init()
 	}
 
 
-	SDL_GL_SetSwapInterval(1);
+	if (SDL_GL_SetSwapInterval(1) < 0)
+	{
+		printf("Unable to set VSYNC!");
+	}
 
 	glewExperimental = GL_TRUE;
 	glewInit();
+
+	
 
 	rendering_program = compile_shaders();
 
@@ -280,11 +323,55 @@ bool Init()
 	//create the vertex buffer
 	GLuint buffer;
 
-	static const vertex vertices[] =
+	static const GLfloat vertices[] =
 	{
-		{ 0.25, -0.25, 0.5, 1.0, 1.0, 0.0, 0.0, 1.0},
-		{ -0.25, -0.25, 0.5, 1.0, 0.0, 1.0, 0.0, 1.0},
-		{ 0.25, 0.25, 0.5, 1.0,	0.0, 0.0, 1.0, 1.0}
+		-0.25f,  0.25f, -0.25f,
+		-0.25f, -0.25f, -0.25f,
+		 0.25f, -0.25f, -0.25f,
+
+		 0.25f, -0.25f, -0.25f,
+		 0.25f,  0.25f, -0.25f,
+		-0.25f,  0.25f, -0.25f,
+
+		 0.25f, -0.25f, -0.25f,
+		 0.25f, -0.25f,  0.25f,
+		 0.25f,  0.25f, -0.25f,
+
+		 0.25f, -0.25f,  0.25f,
+		 0.25f,  0.25f,  0.25f,
+		 0.25f,  0.25f, -0.25f,
+
+		 0.25f, -0.25f,  0.25f,
+		-0.25f, -0.25f,  0.25f,
+		 0.25f,  0.25f,  0.25f,
+
+		-0.25f, -0.25f,  0.25f,
+		-0.25f,  0.25f,  0.25f,
+		 0.25f,  0.25f,  0.25f,
+
+		-0.25f, -0.25f,  0.25f,
+		-0.25f, -0.25f, -0.25f,
+		-0.25f,  0.25f,  0.25f,
+
+		-0.25f, -0.25f, -0.25f,
+		-0.25f,  0.25f, -0.25f,
+		-0.25f,  0.25f,  0.25f,
+
+		-0.25f, -0.25f,  0.25f,
+		 0.25f, -0.25f,  0.25f,
+		 0.25f, -0.25f, -0.25f,
+
+		 0.25f, -0.25f, -0.25f,
+		-0.25f, -0.25f, -0.25f,
+		-0.25f, -0.25f,  0.25f,
+
+		-0.25f,  0.25f, -0.25f,
+		 0.25f,  0.25f, -0.25f,
+		 0.25f,  0.25f,  0.25f,
+
+		 0.25f,  0.25f,  0.25f,
+		-0.25f,  0.25f,  0.25f,
+		-0.25f,  0.25f, -0.25f
 	};
 
 	//static const GLfloat positions[] =
@@ -302,9 +389,25 @@ bool Init()
 	//};
 
 	glCreateVertexArrays(1, &vertex_array_object);
-	glCreateBuffers(1, &buffer);
-
 	glBindVertexArray(vertex_array_object);
+
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_CW);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+
+	glFrontFace(GL_CW);
+
+
+	/*
 
 
 	glNamedBufferStorage(buffer, sizeof(vertices), vertices, 0);
@@ -317,7 +420,7 @@ bool Init()
 	glVertexArrayAttribBinding(vertex_array_object, 1, 0);
 	glEnableVertexAttribArray(1);
 
-	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer, 0, sizeof(vertex));
+	glVertexArrayVertexBuffer(vertex_array_object, 0, buffer, 0, sizeof(vertex));*/
 
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 3);
@@ -325,10 +428,12 @@ bool Init()
 	return true;
 }
 
+bool one_cube = false;
+
 void RunGame()
 {
 	bool loop = true;
-	unsigned int currentTime;
+	 float currentTime;
 	int frameTime;
 	const int frameDelay = 1000 / MAX_FPS;
 
@@ -343,26 +448,60 @@ void RunGame()
 			}
 		}
 
-		currentTime = SDL_GetTicks();
-		std::cout << (float)cos(currentTime / 1000) * 0.5f + 0.5f << std::endl;
+		currentTime = (float) SDL_GetTicks() / 1000.0f;
+		std::cout << "SDL TIME: "<< currentTime << std::endl;
 		const GLfloat black[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		const GLfloat green[] = { 0.0f, 1.0f, 0.0f, 1.0f };
 		const GLfloat color[] = { (float)sin(currentTime / 1000) * 0.5f + 0.5f, (float)cos(currentTime / 1000) * 0.5f + 0.5f, 0.0f, 1.0f };
+		const GLfloat one = 1.0f;
 		glClearBufferfv(GL_COLOR, 0, black);
+		glClearBufferfv(GL_DEPTH, 0, &one);
+		glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0);
 
 		glUseProgram(rendering_program);
 
-		GLfloat offsetData[] = { (float)sin(currentTime / 1000) * 0.5f,
-			(float)cos(currentTime / 1000) * 0.6f,
-			0.0f, 0.0f };
+		GLint mv_location = glGetUniformLocation(rendering_program, "mv_matrix");
+		GLint proj_location = glGetUniformLocation(rendering_program, "proj_matrix");
 
-		glVertexAttrib4fv(2, offsetData);
+		glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(proj_matrix));
 
 
-		glPointSize(5.0f);
+		if (one_cube)
+		{
+
+			float f = (float)currentTime * (float)M_PI * 0.1f;
+			glm::mat4 mv_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f)) *
+				glm::translate(glm::mat4(1.0f), glm::vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f)) *
+				glm::rotate(glm::mat4(1.0f), (float)currentTime  * 1.0f, glm::vec3(0.0f, 1.0f, 0.0f)) *
+				glm::rotate(glm::mat4(1.0f), (float)currentTime  * 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+
+			glUniformMatrix4fv(mv_location, 1, GL_FALSE, glm::value_ptr(mv_matrix));
+
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+		else
+		{
+			for (int i = 0; i < 24; i++)
+			{
+				float f = (float)i + (float)currentTime * 0.3f;
+				glm::mat4 mv_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -20.0f)) *
+					glm::rotate(glm::mat4(1.0f), (float)currentTime  * 1.0f, glm::vec3(0.0f, 1.0f, 0.0f)) *
+					glm::rotate(glm::mat4(1.0f), (float)currentTime  * 1.0f, glm::vec3(1.0f, 0.0f, 0.0f)) *
+					glm::translate(glm::mat4(1.0f), glm::vec3(sinf(2.1f * f) * 2.0f, cosf(1.7f * f) * 2.0f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
+
+				glUniformMatrix4fv(mv_location, 1, GL_FALSE, glm::value_ptr(mv_matrix));
+
+				glDrawArrays(GL_TRIANGLES, 0, 36);
+			}
+		}
+
+
+
+		//glPointSize(5.0f);
 		//for the tesselation thing
 		//glDrawArrays(GL_PATCHES, 0, 3);
 
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+
 
 		GLenum e = glGetError();
 		SDL_GL_SwapWindow(mainWindow);
