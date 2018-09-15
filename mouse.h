@@ -23,11 +23,11 @@ public:
     {
         switch (button)
         {
-        case GLUT_LEFT_BUTTON:
-            _leftButton = (state==GLUT_DOWN);
+        case SDL_BUTTON_LEFT:
+            _leftButton = (state== SDL_MOUSEBUTTONDOWN);
             break;
-        case GLUT_RIGHT_BUTTON:
-            _rightButton = (state==GLUT_DOWN);
+        case SDL_BUTTON_RIGHT:
+            _rightButton = (state== SDL_MOUSEBUTTONDOWN);
             break;
         }
         updatePosition(x, y);

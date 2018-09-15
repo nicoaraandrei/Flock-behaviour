@@ -1,16 +1,13 @@
 #include <SDL.h>
 #include <glew.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <string>
-#include <math.h>
-#include <time.h>
 #include <vector>
 #include <iostream>
 #include <glm\glm.hpp>
 #include <glm\gtc\matrix_transform.hpp>
 #include <glm\gtc\type_ptr.hpp>
-//#include "mouse.h"
+#include "camera.h"
+#include "mouse.h"
 //#include "keyboard.h"
 
 #define MAX_ACCELERATION  0.1f
@@ -27,6 +24,7 @@ GLuint rendering_program;
 GLuint vertex_array_object;
 
 glm::mat4 proj_matrix = glm::mat4(1.0f);
+Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
 
 struct vertex
 {
@@ -290,7 +288,7 @@ bool Init()
 
 	int windowWidth, windowHeight;
 	SDL_GetWindowSize(mainWindow, &windowWidth, &windowHeight);
-	proj_matrix = calculateProjMatrix(50.f, windowWidth, windowHeight, 0.1f, 1000.0f);
+	proj_matrix = calculateProjMatrix(glm::radians(camera.zoom), windowWidth, windowHeight, 0.1f, 1000.0f);
 
 	SDL_AddEventWatch(onResize, mainWindow);
 
@@ -311,7 +309,6 @@ bool Init()
 	glewExperimental = GL_TRUE;
 	glewInit();
 
-	
 
 	rendering_program = compile_shaders();
 
@@ -446,10 +443,29 @@ void RunGame()
 			{
 				loop = false;
 			}
+			else if (event.type == SDL_MOUSEBUTTONDOWN)
+			{
+				Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
+			}
+			else if (event.type == SDL_MOUSEBUTTONUP)
+			{
+				Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
+			}
+			else if (event.type == SDL_MOUSEWHEEL)
+			{
+				camera.ProcessMouseScroll(event.wheel.y);
+				int windowWidth, windowHeight;
+				SDL_GetWindowSize(mainWindow, &windowWidth, &windowHeight);
+				proj_matrix = calculateProjMatrix(glm::radians(camera.zoom), windowWidth, windowHeight, 0.1f, 1000.0f);
+			}
+			if (Mouse::right_isPressed())
+			{
+				camera.ProcessMouseMovement(event.motion.x, event.motion.x);
+			}
 		}
 
 		currentTime = (float) SDL_GetTicks() / 1000.0f;
-		std::cout << "SDL TIME: "<< currentTime << std::endl;
+		//std::cout << "SDL TIME: "<< currentTime << std::endl;
 		const GLfloat black[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 		const GLfloat green[] = { 0.0f, 1.0f, 0.0f, 1.0f };
 		const GLfloat color[] = { (float)sin(currentTime / 1000) * 0.5f + 0.5f, (float)cos(currentTime / 1000) * 0.5f + 0.5f, 0.0f, 1.0f };
@@ -481,10 +497,12 @@ void RunGame()
 		}
 		else
 		{
-			for (int i = 0; i < 24; i++)
+			for (int i = 0; i < 1000; i++)
 			{
 				float f = (float)i + (float)currentTime * 0.3f;
-				glm::mat4 mv_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -20.0f)) *
+				glm::mat4 viewcamera = camera.GetViewMatrix();
+				glm::mat4 viewgen = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
+				glm::mat4 mv_matrix = camera.GetViewMatrix() *
 					glm::rotate(glm::mat4(1.0f), (float)currentTime  * 1.0f, glm::vec3(0.0f, 1.0f, 0.0f)) *
 					glm::rotate(glm::mat4(1.0f), (float)currentTime  * 1.0f, glm::vec3(1.0f, 0.0f, 0.0f)) *
 					glm::translate(glm::mat4(1.0f), glm::vec3(sinf(2.1f * f) * 2.0f, cosf(1.7f * f) * 2.0f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
