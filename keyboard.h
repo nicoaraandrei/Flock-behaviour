@@ -1,5 +1,5 @@
-#ifndef KEYBOARD_H
-#define KEYBOARD_H
+#pragma once
+
 class Keyboard
 {
  public:
@@ -23,5 +23,4 @@ class Keyboard
  static bool _keyboard[256];
 };
 bool Keyboard::_keyboard[256];
-#endif
 

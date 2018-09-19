@@ -1,5 +1,5 @@
-#ifndef MOUSE_H
-#define MOUSE_H
+#pragma once
+
 class Mouse
 {
 public:
@@ -101,4 +101,4 @@ int Mouse::_lastY_right = 0;
 bool Mouse::_leftButton = false;
 bool Mouse::_middleButton = false;
 bool Mouse::_rightButton = false;
-#endif
+
