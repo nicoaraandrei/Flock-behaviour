@@ -13,6 +13,8 @@
 //#include "keyboard.h"
 #include "Sprite.h"
 #include "Errors.h"
+#include "GLTexture.h"
+#include "ImageLoader.h"
 
 #define MAX_ACCELERATION  0.1f
 
@@ -30,6 +32,7 @@ glm::mat4 proj_matrix = glm::mat4(1.0f);
 Camera camera;
 
 Sprite sprite;
+GLTexture fishTexture;
 GLSLProgram colorProgram;
 
 float currentTime;
@@ -79,7 +82,14 @@ void initShaders()
 	colorProgram.compileShaders("Shaders/colorShading.vert", "Shaders/colorShading.frag");
 	colorProgram.addAttribute("vertexPosition");
 	colorProgram.addAttribute("vertexColor");
+	colorProgram.addAttribute("vertexUV");
 	colorProgram.linkShaders();
+}
+
+void initEntities()
+{
+	sprite.init(-0.5f, -0.5f, 1.0f, 1.0f);
+	fishTexture = ImageLoader::loadPNG("Textures/Fish/blue_fish_1.png");
 }
 
 bool Init()
@@ -131,6 +141,7 @@ bool Init()
 	glewInit();
 	
 	initShaders();
+	initEntities();
 
 	return true;
 }
@@ -145,6 +156,11 @@ void DrawGame()
 
 	colorProgram.use();
 	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, fishTexture.id);
+	GLint textureLocation = colorProgram.getUniformLocation("mSampler");
+	glUniform1i(textureLocation, 0);
+
 	GLuint timeLocation = colorProgram.getUniformLocation("time");
 	glUniform1f(timeLocation, currentTime/1000.0f);
 
@@ -154,6 +170,8 @@ void DrawGame()
 	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &(cameraMatrix[0][0]));*/
 
 	sprite.draw();
+	
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	colorProgram.unuse();
 
@@ -619,8 +637,6 @@ int main(int argc, char *argv[])
 		cin.get();
 		return -1;
 	}
-
-	sprite.init(-1.0f, -1.0f, 2.0f, 2.0f);
 
 	RunGame();
 
