@@ -14,7 +14,6 @@
 #include "Sprite.h"
 #include "Errors.h"
 #include "GLTexture.h"
-#include "ImageLoader.h"
 
 #define MAX_ACCELERATION  0.1f
 
@@ -31,8 +30,7 @@ GLuint rendering_program;
 glm::mat4 proj_matrix = glm::mat4(1.0f);
 Camera camera;
 
-Sprite sprite;
-GLTexture fishTexture;
+std::vector<Sprite*> sprites;
 GLSLProgram colorProgram;
 
 float currentTime;
@@ -88,8 +86,13 @@ void initShaders()
 
 void initEntities()
 {
-	sprite.init(-0.5f, -0.5f, 1.0f, 1.0f);
-	fishTexture = ImageLoader::loadPNG("Textures/Fish/blue_fish_1.png");
+
+	sprites.push_back(new Sprite());
+	sprites.back()->init(-1.0f, -0.5f, 1.0f, 1.0f, "Textures/Fish/blue_fish_1.png");
+
+	sprites.push_back(new Sprite());
+	sprites.back()->init(-0.0f, -0.5f, 1.0f, 1.0f, "Textures/Fish/blue_fish_1.png");
+
 }
 
 bool Init()
@@ -157,7 +160,6 @@ void DrawGame()
 	colorProgram.use();
 	
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, fishTexture.id);
 	GLint textureLocation = colorProgram.getUniformLocation("mSampler");
 	glUniform1i(textureLocation, 0);
 
@@ -169,8 +171,10 @@ void DrawGame()
 	glm::mat4 cameraMatrix = camera.getCameraMatrix();
 	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &(cameraMatrix[0][0]));*/
 
-	sprite.draw();
-	
+	for (int i = 0; i < sprites.size(); i++)
+	{
+		sprites[i]->draw();
+	}
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	colorProgram.unuse();
@@ -215,7 +219,7 @@ void RunGame()
 				// zoom
 				camera.setScale(camera.getScale() + event.wheel.y * SCALE_SPEED);
 
-				std::cout << "yoffset: " << event.wheel.y << std::endl;
+				//std::cout << "yoffset: " << event.wheel.y << std::endl;
 			}
 			if (Mouse::right_isPressed())
 			{
