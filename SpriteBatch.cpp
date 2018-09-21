@@ -64,12 +64,24 @@ void SpriteBatch::renderBatch()
 {
 	glBindVertexArray(_vao);
 
+	glEnableVertexAttribArray(0);
+
+	glEnableVertexAttribArray(1);
+
+	glEnableVertexAttribArray(2);
+
 	for (int i = 0; i < _renderBatches.size(); i++)
 	{
 		glBindTexture(GL_TEXTURE_2D, _renderBatches[i].texture);
 
 		glDrawArrays(GL_TRIANGLES, _renderBatches[i].offset, _renderBatches[i].numVertices);
 	}
+
+	glDisableVertexAttribArray(0);
+
+	glDisableVertexAttribArray(1);
+
+	glDisableVertexAttribArray(2);
 
 	glBindVertexArray(0);
 

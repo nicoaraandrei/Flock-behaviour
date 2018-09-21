@@ -183,7 +183,7 @@ void DrawGame()
 	glm::vec4 pos(0.0f, 0.0f, 50.0f, 50.0f);
 	glm::vec4 uv(0.0f, 0.0f, 1.0f, 1.0f);
 	static GLTexture blueFishTexture = ResourceManager::getTexture("Textures/Fish/blue_fish_1.png");
-	//static GLTexture redFishTexture = ResourceManager::getTexture("Textures/Fish/red_fish_1.png");
+	static GLTexture redFishTexture = ResourceManager::getTexture("Textures/Fish/red_fish_1.png");
 	Color whiteColor;
 	whiteColor.r = 255.0f;
 	whiteColor.g = 255.0f;
@@ -191,7 +191,7 @@ void DrawGame()
 	whiteColor.a = 255.0f;
 
 	spriteBatch.draw(pos, uv, blueFishTexture.id, 0.0f, whiteColor);
-	//spriteBatch.draw(pos + glm::vec4(50,0,0,0), uv, redFishTexture.id, 0.0f, whiteColor);
+	spriteBatch.draw(pos + glm::vec4(50,0,0,0), uv, redFishTexture.id, 0.0f, whiteColor);
 
 	spriteBatch.end();
 	spriteBatch.renderBatch();

@@ -92,7 +92,7 @@ void GLSLProgram::use()
 	glUseProgram(_programID);
 	for (int i = 0; i < _numAttributes; i++)
 	{
-		//glEnableVertexAttribArray(i);
+		glEnableVertexAttribArray(i);
 	}
 }
 
@@ -101,7 +101,7 @@ void GLSLProgram::unuse()
 	glUseProgram(0);
 	for (int i = 0; i < _numAttributes; i++)
 	{
-		//glDisableVertexAttribArray(i);
+		glDisableVertexAttribArray(i);
 	}
 }
 
