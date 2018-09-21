@@ -14,6 +14,8 @@
 #include "Sprite.h"
 #include "Errors.h"
 #include "GLTexture.h"
+#include "SpriteBatch.h"
+#include "ResourceManager.h"
 
 #define MAX_ACCELERATION  0.1f
 
@@ -30,7 +32,8 @@ GLuint rendering_program;
 glm::mat4 proj_matrix = glm::mat4(1.0f);
 Camera camera;
 
-std::vector<Sprite*> sprites;
+//std::vector<Sprite*> sprites;
+SpriteBatch spriteBatch;
 GLSLProgram colorProgram;
 
 float currentTime;
@@ -87,11 +90,13 @@ void initShaders()
 void initEntities()
 {
 
-	sprites.push_back(new Sprite());
-	sprites.back()->init(-1.0f, -0.5f, 1.0f, 1.0f, "Textures/Fish/blue_fish_1.png");
+	/*sprites.push_back(new Sprite());
+	sprites.back()->init(0.0f, 0.0f, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, "Textures/Fish/blue_fish_1.png");
 
 	sprites.push_back(new Sprite());
-	sprites.back()->init(-0.0f, -0.5f, 1.0f, 1.0f, "Textures/Fish/blue_fish_1.png");
+	sprites.back()->init(WINDOW_WIDTH / 2, 0.0f, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, "Textures/Fish/blue_fish_1.png");*/
+
+	spriteBatch.init();
 
 }
 
@@ -118,13 +123,6 @@ bool Init()
 		return false;
 	}
 
-
-	camera.init(WINDOW_WIDTH, WINDOW_HEIGHT);
-
-
-	//should calculate proj matrix
-
-
 	SDL_AddEventWatch(onResize, mainWindow);
 
 	mainContext = SDL_GL_CreateContext(mainWindow);
@@ -135,6 +133,7 @@ bool Init()
 		return false;
 	}
 
+	//set vsync 1 - enable, 2 - disable
 	if (SDL_GL_SetSwapInterval(1) < 0)
 	{
 		printf("Unable to set VSYNC!");
@@ -142,6 +141,9 @@ bool Init()
 
 	glewExperimental = GL_TRUE;
 	glewInit();
+	
+	glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+	camera.init(WINDOW_WIDTH, WINDOW_HEIGHT);
 	
 	initShaders();
 	initEntities();
@@ -166,15 +168,34 @@ void DrawGame()
 	GLuint timeLocation = colorProgram.getUniformLocation("time");
 	glUniform1f(timeLocation, currentTime/1000.0f);
 
-	/*GLint proj_location = glGetUniformLocation(rendering_program, "proj_matrix");
+	GLint proj_location = colorProgram.getUniformLocation("proj_matrix");
 
 	glm::mat4 cameraMatrix = camera.getCameraMatrix();
-	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &(cameraMatrix[0][0]));*/
+	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &(cameraMatrix[0][0]));
 
-	for (int i = 0; i < sprites.size(); i++)
+	/*for (int i = 0; i < sprites.size(); i++)
 	{
 		sprites[i]->draw();
-	}
+	}*/
+
+	spriteBatch.begin();
+
+	glm::vec4 pos(0.0f, 0.0f, 50.0f, 50.0f);
+	glm::vec4 uv(0.0f, 0.0f, 1.0f, 1.0f);
+	static GLTexture blueFishTexture = ResourceManager::getTexture("Textures/Fish/blue_fish_1.png");
+	//static GLTexture redFishTexture = ResourceManager::getTexture("Textures/Fish/red_fish_1.png");
+	Color whiteColor;
+	whiteColor.r = 255.0f;
+	whiteColor.g = 255.0f;
+	whiteColor.b = 255.0f;
+	whiteColor.a = 255.0f;
+
+	spriteBatch.draw(pos, uv, blueFishTexture.id, 0.0f, whiteColor);
+	//spriteBatch.draw(pos + glm::vec4(50,0,0,0), uv, redFishTexture.id, 0.0f, whiteColor);
+
+	spriteBatch.end();
+	spriteBatch.renderBatch();
+
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	colorProgram.unuse();
@@ -190,7 +211,7 @@ void RunGame()
 	int frameTime;
 	const int frameDelay = 1000 / MAX_FPS;
 
-	const float CAMERA_SPEED = 20.0f;
+	const float CAMERA_SPEED = 10.0f;
 	const float SCALE_SPEED = 0.1f;
 
 	while (loop)
@@ -231,19 +252,19 @@ void RunGame()
 
 		if (currentKeyStates[SDL_SCANCODE_W])
 		{
-			camera.setPosition(camera.getPosition() + glm::vec2(0.0f, -CAMERA_SPEED));
+			camera.setPosition(camera.getPosition() + glm::vec2(0.0f, CAMERA_SPEED));
 		}
 		else if (currentKeyStates[SDL_SCANCODE_S])
 		{
-			camera.setPosition(camera.getPosition() + glm::vec2(0.0f, CAMERA_SPEED));
+			camera.setPosition(camera.getPosition() + glm::vec2(0.0f, -CAMERA_SPEED));
 		}
 		else if (currentKeyStates[SDL_SCANCODE_A])
 		{
-			camera.setPosition(camera.getPosition() + glm::vec2(CAMERA_SPEED, 0.0f));
+			camera.setPosition(camera.getPosition() + glm::vec2(-CAMERA_SPEED, 0.0f));
 		}
 		else if (currentKeyStates[SDL_SCANCODE_D])
 		{
-			camera.setPosition(camera.getPosition() + glm::vec2(-CAMERA_SPEED, 0.0f));
+			camera.setPosition(camera.getPosition() + glm::vec2(CAMERA_SPEED, 0.0f));
 		}
 			
 			

@@ -63,14 +63,16 @@ void Sprite::init(float x, float y, float width, float height, std::string textu
 
 	for (int i = 0; i < 6; i++)
 	{
-		vertexData[1].setColor(255, 0, 255, 255);
+		vertexData[1].setColor(255, 255, 255, 255);
 	}
 
-	vertexData[1].setColor(0, 0, 255, 255);
-	vertexData[4].setColor(0, 255, 0, 255);
+	//vertexData[1].setColor(0, 0, 255, 255);
+	//vertexData[4].setColor(0, 255, 0, 255);
 
-
-	glCreateVertexArrays(1, &_vaoID);
+	if (_vaoID == 0)
+	{
+		glGenVertexArrays(1, &_vaoID);
+	}
 	glBindVertexArray(_vaoID);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _vboID);
@@ -86,6 +88,11 @@ void Sprite::draw()
 	glBindBuffer(GL_ARRAY_BUFFER, _vboID);
 
 	glEnableVertexAttribArray(0);
+
+	glEnableVertexAttribArray(1);
+
+	glEnableVertexAttribArray(2);
+
 	
 	//position attribute pointer
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
@@ -99,6 +106,11 @@ void Sprite::draw()
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	glDisableVertexAttribArray(0);
+
+	glDisableVertexAttribArray(1);
+
+	glDisableVertexAttribArray(2);
+
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
