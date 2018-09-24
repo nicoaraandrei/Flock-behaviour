@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 #include <glm\glm.hpp>
 #include <glm\gtc\matrix_transform.hpp>
 #include <glm\gtc\type_ptr.hpp>
@@ -33,6 +34,8 @@ GLuint rendering_program;
 
 glm::mat4 proj_matrix = glm::mat4(1.0f);
 Camera camera;
+const float CAMERA_SPEED = 10.0f;
+const float SCALE_SPEED = 0.1f;
 
 //std::vector<Sprite*> sprites;
 SpriteBatch spriteBatch;
@@ -44,6 +47,8 @@ float fps = 0.0f;
 std::vector<Fish> fishBullets;
 
 float currentTime;
+bool isRunning = true;
+
 
 void SetOpenGLAttributes()
 {
@@ -219,94 +224,122 @@ SDL_GL_SwapWindow(mainWindow);
 
 }
 
+
+void updateAgents(float deltaTime)
+{
+	for (int i = 0; i < fishBullets.size();) {
+		if (fishBullets[i].update(deltaTime) == true)
+		{
+			fishBullets[i] = fishBullets.back();
+			fishBullets.pop_back();
+		}
+		else
+		{
+			i++;
+		}
+	}
+}
+
+void processInput()
+{
+	SDL_Event event;
+	while (SDL_PollEvent(&event))
+	{
+		if (event.type == SDL_QUIT)
+		{
+			isRunning = false;
+		}
+		else if (event.type == SDL_MOUSEBUTTONDOWN)
+		{
+			Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
+			if (Mouse::left_isPressed())
+			{
+				// add a new fish
+				glm::vec2 mouseCoords = glm::vec2(Mouse::getX(), Mouse::getY());
+				mouseCoords = camera.convertScreenToWorld(mouseCoords);
+				std::cout << mouseCoords.x << "  " << mouseCoords.y << std::endl;
+
+				glm::vec2 playerPosition(0.0f);
+				glm::vec2 direction = mouseCoords - playerPosition;
+
+				direction = glm::normalize(direction);
+				fishBullets.emplace_back(playerPosition, direction, 2.0f, 1000);
+			}
+		}
+		else if (event.type == SDL_MOUSEBUTTONUP)
+		{
+			Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
+		}
+		else if (event.type == SDL_MOUSEWHEEL)
+		{
+			// zoom
+			camera.setScale(camera.getScale() + event.wheel.y * SCALE_SPEED);
+
+			//std::cout << "yoffset: " << event.wheel.y << std::endl;
+		}
+		if (Mouse::right_isPressed())
+		{
+		}
+	}
+
+	const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
+
+
+	if (currentKeyStates[SDL_SCANCODE_W])
+	{
+		camera.setPosition(camera.getPosition() + glm::vec2(0.0f, CAMERA_SPEED));
+	}
+	else if (currentKeyStates[SDL_SCANCODE_S])
+	{
+		camera.setPosition(camera.getPosition() + glm::vec2(0.0f, -CAMERA_SPEED));
+	}
+	else if (currentKeyStates[SDL_SCANCODE_A])
+	{
+		camera.setPosition(camera.getPosition() + glm::vec2(-CAMERA_SPEED, 0.0f));
+	}
+	else if (currentKeyStates[SDL_SCANCODE_D])
+	{
+		camera.setPosition(camera.getPosition() + glm::vec2(CAMERA_SPEED, 0.0f));
+	}
+
+}
+
 void RunGame()
 {
-	bool loop = true;
 	int frameTime;
 	const int frameDelay = 1000 / MAX_FPS;
+	
+	const float DESIRED_FPS = 60.0f;
+	const int MAX_PHYSICS_STEPS = 6;
+	const float MS_PER_SECOND = 1000.0f;
+	const float  DESIRED_FRAMETIME = MS_PER_SECOND / DESIRED_FPS;
+	const float MAX_DELTA_TIME = 1.0f;
 
-	const float CAMERA_SPEED = 10.0f;
-	const float SCALE_SPEED = 0.1f;
+	float previousTicks = SDL_GetTicks();
 
-	while (loop)
+	while (isRunning)
 	{
-		SDL_Event event;
-		while (SDL_PollEvent(&event))
-		{
-			if (event.type == SDL_QUIT)
-			{
-				loop = false;
-			}
-			else if (event.type == SDL_MOUSEBUTTONDOWN)
-			{
-				Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
-				if (Mouse::left_isPressed())
-				{
-					// add a new fish
-					glm::vec2 mouseCoords = glm::vec2(Mouse::getX(), Mouse::getY());
-					mouseCoords = camera.convertScreenToWorld(mouseCoords);
-					std::cout << mouseCoords.x << "  " << mouseCoords.y << std::endl;
+		
+		fpsLimiter.begin();
 
-					glm::vec2 playerPosition(0.0f);
-					glm::vec2 direction = mouseCoords - playerPosition;
+		float newTicks = SDL_GetTicks();
+		float frameTime = newTicks - previousTicks;
+		previousTicks = newTicks;
+		float totalDeltaTime = frameTime / DESIRED_FRAMETIME;
 
-					direction = glm::normalize(direction);
-					fishBullets.emplace_back(playerPosition, direction, 2.0f, 1000);
-				}
-			}
-			else if (event.type == SDL_MOUSEBUTTONUP)
-			{
-				Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
-			}
-			else if (event.type == SDL_MOUSEWHEEL)
-			{
-				// zoom
-				camera.setScale(camera.getScale() + event.wheel.y * SCALE_SPEED);
-
-				//std::cout << "yoffset: " << event.wheel.y << std::endl;
-			}
-			if (Mouse::right_isPressed())
-			{
-			}
-		}
-
-		const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
-
-
-		if (currentKeyStates[SDL_SCANCODE_W])
-		{
-			camera.setPosition(camera.getPosition() + glm::vec2(0.0f, CAMERA_SPEED));
-		}
-		else if (currentKeyStates[SDL_SCANCODE_S])
-		{
-			camera.setPosition(camera.getPosition() + glm::vec2(0.0f, -CAMERA_SPEED));
-		}
-		else if (currentKeyStates[SDL_SCANCODE_A])
-		{
-			camera.setPosition(camera.getPosition() + glm::vec2(-CAMERA_SPEED, 0.0f));
-		}
-		else if (currentKeyStates[SDL_SCANCODE_D])
-		{
-			camera.setPosition(camera.getPosition() + glm::vec2(CAMERA_SPEED, 0.0f));
-		}
-
+		processInput();
 
 		camera.update();
-
-		for (int i = 0; i < fishBullets.size();) {
-			if (fishBullets[i].update() == true)
-			{
-				fishBullets[i] = fishBullets.back();
-				fishBullets.pop_back();
-			}
-			else
-			{
-				i++;
-			}
+		
+		int i = 0;
+		while (totalDeltaTime > 0.0f && i < MAX_PHYSICS_STEPS)
+		{
+			float deltaTime = std::min(totalDeltaTime, MAX_DELTA_TIME);
+			updateAgents(deltaTime);
+			totalDeltaTime -= deltaTime;
+			i++;
 		}
 
-		fpsLimiter.begin();
-		
 		DrawGame();
 
 		fps = fpsLimiter.end();

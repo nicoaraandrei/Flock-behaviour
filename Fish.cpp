@@ -26,9 +26,9 @@ void Fish::draw(SpriteBatch& spriteBatch)
 	spriteBatch.draw(posAndSize, uv, redFishTexture.id, 0.0f, whiteColor);
 }
 
-bool Fish::update()
+bool Fish::update(float deltaTime)
 {
-	_position += _direction * _speed;
+	_position += _direction * _speed * deltaTime;
 	_lifeTime--;
 	if (_lifeTime == 0)
 	{

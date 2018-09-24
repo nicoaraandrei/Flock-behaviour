@@ -11,7 +11,7 @@ public:
 
 	void draw(SpriteBatch& spriteBatch);
 	//return true when the life time is zero
-	bool update();
+	bool update(float deltaTime);
 
 private:
 	float _speed;
