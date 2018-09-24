@@ -107,6 +107,7 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Errors.cpp" />
+    <ClCompile Include="Fish.cpp" />
     <ClCompile Include="GLSLProgram.cpp" />
     <ClCompile Include="ImageLoader.cpp" />
     <ClCompile Include="IOManager.cpp" />
@@ -116,10 +117,12 @@
     <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="SpriteBatch.cpp" />
     <ClCompile Include="TextureCache.cpp" />
+    <ClCompile Include="Timing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Errors.h" />
+    <ClInclude Include="Fish.h" />
     <ClInclude Include="GLSLProgram.h" />
     <ClInclude Include="GLTexture.h" />
     <ClInclude Include="ImageLoader.h" />
@@ -131,6 +134,7 @@
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="SpriteBatch.h" />
     <ClInclude Include="TextureCache.h" />
+    <ClInclude Include="Timing.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>

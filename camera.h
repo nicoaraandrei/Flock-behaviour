@@ -32,6 +32,8 @@ public:
 
 	glm::mat4 getCameraMatrix() { return _cameraMatrix; }
 
+	glm::vec2 convertScreenToWorld(glm::vec2 screenCoords);
+
 private:
 	int _screenWidth, _screenHeight;
 	bool _needsMatrixUpdate;

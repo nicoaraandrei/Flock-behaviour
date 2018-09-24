@@ -16,12 +16,14 @@
 #include "GLTexture.h"
 #include "SpriteBatch.h"
 #include "ResourceManager.h"
+#include "Fish.h"
+#include "Timing.h";
 
 #define MAX_ACCELERATION  0.1f
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-#define MAX_FPS 60
+#define MAX_FPS 300
 
 using namespace std;
 
@@ -35,6 +37,11 @@ Camera camera;
 //std::vector<Sprite*> sprites;
 SpriteBatch spriteBatch;
 GLSLProgram colorProgram;
+
+FpsLimiter fpsLimiter;
+float fps = 0.0f;
+
+std::vector<Fish> fishBullets;
 
 float currentTime;
 
@@ -72,6 +79,7 @@ static int onResize(void* data, SDL_Event* event)
 			SDL_GetWindowSize(win, &windowWidth, &windowHeight);
 			glViewport(0, 0, windowWidth, windowHeight);
 			
+			camera.init(windowWidth, windowHeight);
 			printf("resizing.....\n");
 		}
 	}
@@ -134,7 +142,7 @@ bool Init()
 	}
 
 	//set vsync 1 - enable, 2 - disable
-	if (SDL_GL_SetSwapInterval(1) < 0)
+	if (SDL_GL_SetSwapInterval(0) < 0)
 	{
 		printf("Unable to set VSYNC!");
 	}
@@ -142,11 +150,17 @@ bool Init()
 	glewExperimental = GL_TRUE;
 	glewInit();
 	
+	//enable alpha blending
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
 	camera.init(WINDOW_WIDTH, WINDOW_HEIGHT);
 	
 	initShaders();
 	initEntities();
+
+	fpsLimiter.init(MAX_FPS);
 
 	return true;
 }
@@ -165,8 +179,8 @@ void DrawGame()
 	GLint textureLocation = colorProgram.getUniformLocation("mSampler");
 	glUniform1i(textureLocation, 0);
 
-	GLuint timeLocation = colorProgram.getUniformLocation("time");
-	glUniform1f(timeLocation, currentTime/1000.0f);
+	//GLuint timeLocation = colorProgram.getUniformLocation("time");
+	//glUniform1f(timeLocation, currentTime/1000.0f);
 
 	GLint proj_location = colorProgram.getUniformLocation("proj_matrix");
 
@@ -180,28 +194,28 @@ void DrawGame()
 
 	spriteBatch.begin();
 
-	glm::vec4 pos(0.0f, 0.0f, 50.0f, 50.0f);
-	glm::vec4 uv(0.0f, 0.0f, 1.0f, 1.0f);
-	static GLTexture blueFishTexture = ResourceManager::getTexture("Textures/Fish/blue_fish_1.png");
-	static GLTexture redFishTexture = ResourceManager::getTexture("Textures/Fish/red_fish_1.png");
-	Color whiteColor;
-	whiteColor.r = 255.0f;
-	whiteColor.g = 255.0f;
-	whiteColor.b = 255.0f;
-	whiteColor.a = 255.0f;
+glm::vec4 pos(0.0f, 0.0f, 50.0f, 50.0f);
+glm::vec4 uv(0.0f, 0.0f, 1.0f, 1.0f);
+static GLTexture blueFishTexture = ResourceManager::getTexture("Textures/Fish/blue_fish_1.png");
+ColorRGBA8 whiteColor(255,255,255,255);
 
-	spriteBatch.draw(pos, uv, blueFishTexture.id, 0.0f, whiteColor);
-	spriteBatch.draw(pos + glm::vec4(50,0,0,0), uv, redFishTexture.id, 0.0f, whiteColor);
+spriteBatch.draw(pos, uv, blueFishTexture.id, 0.0f, whiteColor);
+//spriteBatch.draw(pos + glm::vec4(50,0,0,0), uv, redFishTexture.id, 0.0f, whiteColor);
 
-	spriteBatch.end();
-	spriteBatch.renderBatch();
+for (int i = 0; i < fishBullets.size(); i++)
+{
+	fishBullets[i].draw(spriteBatch);
+}
 
-	glBindTexture(GL_TEXTURE_2D, 0);
+spriteBatch.end();
+spriteBatch.renderBatch();
 
-	colorProgram.unuse();
+glBindTexture(GL_TEXTURE_2D, 0);
 
-	GLenum e = glGetError();
-	SDL_GL_SwapWindow(mainWindow);
+colorProgram.unuse();
+
+GLenum e = glGetError();
+SDL_GL_SwapWindow(mainWindow);
 
 }
 
@@ -229,6 +243,15 @@ void RunGame()
 				if (Mouse::left_isPressed())
 				{
 					// add a new fish
+					glm::vec2 mouseCoords = glm::vec2(Mouse::getX(), Mouse::getY());
+					mouseCoords = camera.convertScreenToWorld(mouseCoords);
+					std::cout << mouseCoords.x << "  " << mouseCoords.y << std::endl;
+
+					glm::vec2 playerPosition(0.0f);
+					glm::vec2 direction = mouseCoords - playerPosition;
+
+					direction = glm::normalize(direction);
+					fishBullets.emplace_back(playerPosition, direction, 2.0f, 1000);
 				}
 			}
 			else if (event.type == SDL_MOUSEBUTTONUP)
@@ -266,19 +289,34 @@ void RunGame()
 		{
 			camera.setPosition(camera.getPosition() + glm::vec2(CAMERA_SPEED, 0.0f));
 		}
-			
-			
+
+
 		camera.update();
 
-		currentTime = SDL_GetTicks();
+		for (int i = 0; i < fishBullets.size();) {
+			if (fishBullets[i].update() == true)
+			{
+				fishBullets[i] = fishBullets.back();
+				fishBullets.pop_back();
+			}
+			else
+			{
+				i++;
+			}
+		}
+
+		fpsLimiter.begin();
 		
 		DrawGame();
 
-		frameTime = SDL_GetTicks() - currentTime;
+		fps = fpsLimiter.end();
 
-		if (frameDelay > frameTime)
+		static int frameCounter = 0;
+		frameCounter++;
+		if (frameCounter == 10)
 		{
-			SDL_Delay(frameDelay - frameTime);
+			std::cout << fps << std::endl;
+			frameCounter = 0;
 		}
 	}
 }
