@@ -14,8 +14,14 @@ enum class GlyphSortType
 	TEXTURE
 };
 
-struct Glyph
+class Glyph
 {
+public:
+	Glyph() {};
+	Glyph(const glm::vec4& destRect, const glm::vec4& uvRect, GLuint Texture, float Depth, const ColorRGBA8& color);
+	Glyph(const glm::vec4& destRect, const glm::vec4& uvRect, GLuint Texture, float Depth, const ColorRGBA8& color, float angle);
+
+
 	GLuint texture;
 	float depth;
 
@@ -23,6 +29,10 @@ struct Glyph
 	Vertex bottomLeft;
 	Vertex topRight;
 	Vertex bottomRight;
+
+private:
+	// angle in radians
+	glm::vec2 rotatePoint(glm::vec2 pos, float angle);
 };
 
 class RenderBatch
@@ -48,6 +58,11 @@ public:
 
 	void draw(const glm::vec4& destRect, const glm::vec4& uvRect, GLuint texture, float depth, const ColorRGBA8& color);
 
+	void draw(const glm::vec4& destRect, const glm::vec4& uvRect, GLuint texture, float depth, const ColorRGBA8& color, float angle);
+
+	void draw(const glm::vec4& destRect, const glm::vec4& uvRect, GLuint texture, float depth, const ColorRGBA8& color, const glm::vec2& dir);
+
+
 	void renderBatch();
 
 private:
@@ -64,7 +79,8 @@ private:
 
 	GlyphSortType _sortType;
 
-	std::vector<Glyph*> _glyphs;
+	std::vector<Glyph*> _glyphPointers;
+	std::vector<Glyph> _glyphs;
 	std::vector<RenderBatch> _renderBatches;
 };
 
