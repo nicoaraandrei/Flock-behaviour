@@ -134,6 +134,7 @@
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="SpriteBatch.h" />
     <ClInclude Include="TextureCache.h" />
+    <ClInclude Include="TileSheet.h" />
     <ClInclude Include="Timing.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>

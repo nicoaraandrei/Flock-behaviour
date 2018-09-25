@@ -1,6 +1,6 @@
 #include "Camera.h"
 
-Camera::Camera() : _position(0.0f, 0.0f), _cameraMatrix(1.0f), _orthoMatrix(1.0f), _scale(1), _needsMatrixUpdate(true), _screenWidth(800), _screenHeight(600)
+Camera::Camera() : _position(0.0f, 0.0f), _cameraMatrix(1.0f), _orthoMatrix(1.0f), _scale(1), _needsMatrixUpdate(true), _screenWidth(800), _screenHeight(600), _minScale(0.5f), _maxScale(4.0f)
 {
 
 }

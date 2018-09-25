@@ -51,10 +51,6 @@ float currentTime;
 float deltaTime;
 bool isRunning = true;
 
-GLTexture blueFishTexture;
-GLTexture redFishTexture;
-
-
 void SetOpenGLAttributes()
 {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -114,12 +110,10 @@ void initEntities()
 	sprites.push_back(new Sprite());
 	sprites.back()->init(WINDOW_WIDTH / 2, 0.0f, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, "Textures/Fish/blue_fish_1.png");*/
 
-	blueFishTexture = ResourceManager::getTexture("Textures/Fish/blue_fish_1.png");
-	redFishTexture = ResourceManager::getTexture("Textures/Fish/red_fish_1.png");
 
 	glm::vec4 pos(0.0f, 0.0f, 50.0f, 50.0f);
 
-	blueFish.init(pos, glm::vec2(0.0f, 1.0f), 3.0f, -1, blueFishTexture.id);
+	blueFish.init(pos, glm::vec2(0.0f, 1.0f), 3.0f, -1, "Textures/Fish/blue_fish.png");
 
 	spriteBatch.init();
 
@@ -270,7 +264,7 @@ void processInput()
 				glm::vec2 direction = mouseCoords - playerPosition;
 				direction = glm::normalize(direction);
 
-				fishBullets.emplace_back(playerPosition, direction, 2.0f, 1000, redFishTexture.id);
+				fishBullets.emplace_back(mouseCoords, direction, 2.0f, 1000, "Textures/Fish/yellow_fish.png");
 			}
 
 			if (Mouse::right_isPressed())
@@ -292,6 +286,7 @@ void processInput()
 		else if (event.type == SDL_MOUSEWHEEL)
 		{
 			// zoom
+			std::cout << "scale: " << camera.getScale() + event.wheel.y * SCALE_SPEED << std::endl;
 			camera.setScale(camera.getScale() + event.wheel.y * SCALE_SPEED);
 
 			//std::cout << "yoffset: " << event.wheel.y << std::endl;
@@ -365,7 +360,7 @@ void RunGame()
 		frameCounter++;
 		if (frameCounter == 10)
 		{
-			std::cout << fps << std::endl;
+			//std::cout << fps << std::endl;
 			frameCounter = 0;
 		}
 	}

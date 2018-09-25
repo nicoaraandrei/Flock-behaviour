@@ -21,7 +21,18 @@ public:
 
 	void setScale(float newScale)
 	{
-		_scale = newScale;
+		if (newScale < 0.5f)
+		{
+			_scale = 0.5f;
+		}
+		else if (newScale > 4.0f)
+		{
+			_scale = 4.0f;
+		}
+		else
+		{
+			_scale = newScale;
+		}
 		_needsMatrixUpdate = true;
 
 	}
@@ -43,6 +54,7 @@ private:
 	glm::mat4 _cameraMatrix;
 	// projection matrix
 	glm::mat4 _orthoMatrix;
+	float _minScale, _maxScale;
 
 
 };
