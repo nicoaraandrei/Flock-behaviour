@@ -53,7 +53,7 @@ public:
 
 	void init();
 
-	void begin(GlyphSortType sortType = GlyphSortType::TEXTURE);
+	void begin(GlyphSortType sortType = GlyphSortType::BACK_TO_FRONT);
 	void end();
 
 	void draw(const glm::vec4& destRect, const glm::vec4& uvRect, GLuint texture, float depth, const ColorRGBA8& color);

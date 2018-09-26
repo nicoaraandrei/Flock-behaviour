@@ -22,8 +22,7 @@
 
 #define MAX_ACCELERATION  0.1f
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+
 #define MAX_FPS 300
 
 using namespace std;
@@ -31,6 +30,9 @@ using namespace std;
 SDL_Window *mainWindow;
 SDL_GLContext mainContext;
 GLuint rendering_program;
+
+int WINDOW_WIDTH = 800;
+int WINDOW_HEIGHT = 600;
 
 glm::mat4 proj_matrix = glm::mat4(1.0f);
 Camera camera;
@@ -86,6 +88,9 @@ static int onResize(void* data, SDL_Event* event)
 			glViewport(0, 0, windowWidth, windowHeight);
 
 			camera.init(windowWidth, windowHeight);
+			camera.setScale(1.0f);
+			WINDOW_WIDTH = windowWidth;
+			WINDOW_HEIGHT = windowHeight;
 			printf("resizing.....\n");
 		}
 	}
@@ -110,7 +115,6 @@ void initEntities()
 	sprites.push_back(new Sprite());
 	sprites.back()->init(WINDOW_WIDTH / 2, 0.0f, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, "Textures/Fish/blue_fish_1.png");*/
 
-
 	glm::vec4 pos(0.0f, 0.0f, 50.0f, 50.0f);
 
 	blueFish.init(pos, glm::vec2(0.0f, 1.0f), 3.0f, -1, "Textures/Fish/blue_fish.png");
@@ -134,7 +138,7 @@ bool Init()
 	SetOpenGLAttributes();
 
 
-	mainWindow = SDL_CreateWindow("Simple program", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	mainWindow = SDL_CreateWindow("Flock behaviour", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	if (!mainWindow)
 	{
@@ -200,8 +204,19 @@ void DrawGame()
 	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &(cameraMatrix[0][0]));
 
 
+
 	spriteBatch.begin();
 
+	glm::vec4 pos(-WINDOW_WIDTH/(2 * camera.getScale()), -WINDOW_HEIGHT/(2 * camera.getScale()), WINDOW_WIDTH / camera.getScale(), WINDOW_HEIGHT / camera.getScale());
+	glm::vec4 uv(0.0f, 0.0f, WINDOW_WIDTH/(480.0f * camera.getScale()), (float)WINDOW_HEIGHT/(480.0f * camera.getScale()));
+	static GLTexture waterTexture = ResourceManager::getTexture("Textures/Background/Water.png");
+	ColorRGBA8 whiteColor;
+	whiteColor.r = 255.0f;
+	whiteColor.g = 255.0f;
+	whiteColor.b = 255.0f;
+	whiteColor.a = 255.0f;
+
+	spriteBatch.draw(pos, uv, waterTexture.id, 1.0f, whiteColor);
 
 
 	blueFish.draw(spriteBatch);
@@ -264,7 +279,7 @@ void processInput()
 				glm::vec2 direction = mouseCoords - playerPosition;
 				direction = glm::normalize(direction);
 
-				fishBullets.emplace_back(mouseCoords, direction, 2.0f, 1000, "Textures/Fish/yellow_fish.png");
+				fishBullets.emplace_back(mouseCoords, direction, 2.0f, -1, "Textures/Fish/yellow_fish.png");
 			}
 
 			if (Mouse::right_isPressed())

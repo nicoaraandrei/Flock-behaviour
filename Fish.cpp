@@ -45,8 +45,18 @@ void Fish::draw(SpriteBatch& spriteBatch)
 bool Fish::update(float deltaTime)
 {
 	_position += _direction * _speed * deltaTime;
-	_lifeTime--;
+	_lifeTime -= 1 * deltaTime;
 	_animTime += _animSpeed * deltaTime;
+
+	if ((_position.x > 400.0f && _direction.x > 0.0f)|| (_position.x < -400.0f && _direction.x < 0.0f))
+	{
+		_direction.x *= -1;
+	}
+	
+	if ((_position.y > 300.0f && _direction.y > 0.0f) || (_position.y < -300.0f && _direction.y < 0.0f))
+	{
+		_direction.y *= -1;
+	}
 
 	if (_lifeTime == 0)
 	{
