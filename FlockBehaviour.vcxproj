@@ -107,7 +107,7 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Errors.cpp" />
-    <ClCompile Include="Fish.cpp" />
+    <ClCompile Include="MovingEntity.cpp" />
     <ClCompile Include="GLSLProgram.cpp" />
     <ClCompile Include="ImageLoader.cpp" />
     <ClCompile Include="IOManager.cpp" />
@@ -116,13 +116,15 @@
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="SpriteBatch.cpp" />
+    <ClCompile Include="SteeringBehaviors.cpp" />
     <ClCompile Include="TextureCache.cpp" />
     <ClCompile Include="Timing.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BaseEntity.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Errors.h" />
-    <ClInclude Include="Fish.h" />
+    <ClInclude Include="MovingEntity.h" />
     <ClInclude Include="GLSLProgram.h" />
     <ClInclude Include="GLTexture.h" />
     <ClInclude Include="ImageLoader.h" />
@@ -133,6 +135,7 @@
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="SpriteBatch.h" />
+    <ClInclude Include="SteeringBehaviors.h" />
     <ClInclude Include="TextureCache.h" />
     <ClInclude Include="TileSheet.h" />
     <ClInclude Include="Timing.h" />
