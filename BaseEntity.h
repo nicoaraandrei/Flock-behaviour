@@ -27,6 +27,11 @@ protected:
 
 	BaseEntity(int entityType, glm::vec2& pos, float r) : _id(nextValidID()), _boundingRadius(r), _position(pos), _scale(glm::vec2(1.0f)), _entityType(entityType), _bTag(false) {}
 
+	BaseEntity(int entityType, glm::vec2& pos, glm::vec2& scale) : _id(nextValidID()), _position(pos), _scale(scale), _entityType(entityType), _bTag(false)
+	{
+		_boundingRadius *= std::max(scale.x, scale.y);
+	}
+
 public:
 	virtual ~BaseEntity() {}
 

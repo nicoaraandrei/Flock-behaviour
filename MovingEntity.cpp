@@ -57,7 +57,7 @@ void MovingEntity::draw(SpriteBatch& spriteBatch)
 	//glm::vec4 uv(0.0f, 0.0f, 1.0f, 1.0f);
 	ColorRGBA8 whiteColor(255, 255, 255, 255);
 
-	glm::vec4 posAndSize = glm::vec4(_position.x, _position.y, 32, 32);
+	glm::vec4 posAndSize = glm::vec4(_position.x, _position.y, _scale.x, _scale.y);
 
 
 	int tileIndex = 0;
@@ -87,7 +87,7 @@ void MovingEntity::update(float deltaTime)
 	_position += _velocity * deltaTime;
 
 	//std::cout << glm::length2(_velocity) << std::endl;
-	if (glm::length2(_velocity) > 0.1f)
+	if (glm::length2(_velocity) > 0.000001f)
 	{
 		_direction = glm::normalize(_velocity);
 

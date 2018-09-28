@@ -119,6 +119,7 @@
     <ClCompile Include="SteeringBehaviors.cpp" />
     <ClCompile Include="TextureCache.cpp" />
     <ClCompile Include="Timing.cpp" />
+    <ClCompile Include="StaticEntity.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseEntity.h" />
@@ -140,6 +141,7 @@
     <ClInclude Include="TileSheet.h" />
     <ClInclude Include="Timing.h" />
     <ClInclude Include="Vertex.h" />
+    <ClInclude Include="StaticEntity.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\colorShading.frag" />

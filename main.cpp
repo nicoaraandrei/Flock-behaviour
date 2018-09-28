@@ -19,6 +19,7 @@
 #include "ResourceManager.h"
 #include "MovingEntity.h"
 #include "Timing.h";
+#include "StaticEntity.h"
 
 #define PI 3.14159
 
@@ -45,7 +46,10 @@ GLSLProgram colorProgram;
 FpsLimiter fpsLimiter;
 float fps = 0.0f;
 
-std::vector<MovingEntity> fishBullets;
+StaticEntity background;
+std::vector<StaticEntity> walls;
+
+std::vector<MovingEntity> yellowFishes;
 MovingEntity blueFish;
 
 float currentTime;
@@ -96,6 +100,12 @@ static int onResize(void* data, SDL_Event* event)
 			camera.setScale(1.0f);
 			WINDOW_WIDTH = windowWidth;
 			WINDOW_HEIGHT = windowHeight;
+
+			glm::vec2 pos(-WINDOW_WIDTH / (2 * camera.getScale()), -WINDOW_HEIGHT / (2 * camera.getScale()));
+			glm::vec2 scale(WINDOW_WIDTH / camera.getScale(), WINDOW_HEIGHT / camera.getScale());
+			glm::vec4 uv(0.0f, 0.0f, WINDOW_WIDTH / (480.0f * camera.getScale()), (float)WINDOW_HEIGHT / (480.0f * camera.getScale()));
+			background.init(pos, scale, "Textures/Background/Water.png", uv);
+
 			printf("resizing.....\n");
 		}
 	}
@@ -124,7 +134,28 @@ void initEntities()
 
 	//blueFish.init(pos, glm::vec2(0.0f, 1.0f), 3.0f, -1, "Textures/Fish/blue_fish.png");]
 
-	blueFish.init(glm::vec2(0.0f, 0.0f), randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 0.1f, 3.7f, PI, 3.0f, "Textures/Fish/blue_fish.png");
+
+	glm::vec2 pos(-WINDOW_WIDTH / (2 * camera.getScale()), -WINDOW_HEIGHT / (2 * camera.getScale()));
+	glm::vec2 scale(WINDOW_WIDTH / camera.getScale(), WINDOW_HEIGHT / camera.getScale());
+	glm::vec4 uv(0.0f, 0.0f, WINDOW_WIDTH / (480.0f * camera.getScale()), (float)WINDOW_HEIGHT / (480.0f * camera.getScale()));
+	background.init(pos, scale, "Textures/Background/Water.png", uv);
+
+	//left wall
+	walls.emplace_back(glm::vec2(-WINDOW_WIDTH / 2, -WINDOW_HEIGHT / 2), glm::vec2(20.0f, WINDOW_HEIGHT), "Textures/Background/Glass.png");
+	walls.back().calculateNormals(true);
+
+	//top wall
+	walls.emplace_back(glm::vec2(-WINDOW_WIDTH / 2, (WINDOW_HEIGHT - 40.0f) / 2), glm::vec2(WINDOW_WIDTH , 20.0f), "Textures/Background/Glass.png");
+	walls.back().calculateNormals(true);
+
+	//right wall
+	walls.emplace_back(glm::vec2((WINDOW_WIDTH - 40.0f) / 2, -WINDOW_HEIGHT / 2), glm::vec2(20.0f, WINDOW_HEIGHT), "Textures/Background/Glass.png");
+
+	//bottom wall
+	walls.emplace_back(glm::vec2(-WINDOW_WIDTH / 2, -WINDOW_HEIGHT / 2), glm::vec2(WINDOW_WIDTH, 20.0f), "Textures/Background/Glass.png");
+
+	blueFish.init(glm::vec2(0.0f, 0.0f), randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 1.0f, 3.7f, PI, 32.0f, "Textures/Fish/blue_fish.png");
+	blueFish.getSteering()->setWalls(&walls);
 
 	spriteBatch.init();
 
@@ -214,23 +245,21 @@ void DrawGame()
 
 	spriteBatch.begin();
 
-	glm::vec4 pos(-WINDOW_WIDTH/(2 * camera.getScale()), -WINDOW_HEIGHT/(2 * camera.getScale()), WINDOW_WIDTH / camera.getScale(), WINDOW_HEIGHT / camera.getScale());
-	glm::vec4 uv(0.0f, 0.0f, WINDOW_WIDTH/(480.0f * camera.getScale()), (float)WINDOW_HEIGHT/(480.0f * camera.getScale()));
-	static GLTexture waterTexture = ResourceManager::getTexture("Textures/Background/Water.png");
-	ColorRGBA8 whiteColor;
-	whiteColor.r = 255.0f;
-	whiteColor.g = 255.0f;
-	whiteColor.b = 255.0f;
-	whiteColor.a = 255.0f;
 
-	spriteBatch.draw(pos, uv, waterTexture.id, 1.0f, whiteColor);
 
+
+	background.draw(spriteBatch);
+
+	for (int i = 0; i < walls.size(); i++)
+	{
+		walls[i].draw(spriteBatch);
+	}
 
 	blueFish.draw(spriteBatch);
 
-	for (int i = 0; i < fishBullets.size(); i++)
+	for (int i = 0; i < yellowFishes.size(); i++)
 	{
-		fishBullets[i].draw(spriteBatch);
+		yellowFishes[i].draw(spriteBatch);
 	}
 
 	spriteBatch.end();
@@ -245,13 +274,65 @@ void DrawGame()
 
 }
 
+bool isInsideWalls(MovingEntity& fish)
+{
+	for (int i = 0; i < walls.size() - 1; i++)
+	{
+		glm::vec2 side = glm::vec2(walls[i].getPos().x - walls[i + 1].getPos().x, walls[i].getPos().y - walls[i + 1].getPos().y);
+		glm::vec2 point = glm::vec2(walls[i].getPos().x - fish.getPos().x, walls[i].getPos().y - fish.getPos().y);
+		bool isInside = 0 <= glm::dot(side, point) && glm::dot(side, point) <= glm::dot(side, side);
+		if (!isInside)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 void updateAgents(float deltaTime)
 {
 	blueFish.update(deltaTime);
 
-	for (int i = 0; i < fishBullets.size(); i++) {
-		fishBullets[i].update(deltaTime);
+	if (!isInsideWalls(blueFish))
+	{
+		blueFish.setTarget(glm::vec2(0.0f));
+	}
+
+
+	for (int i = 0; i < yellowFishes.size(); i++) {
+		yellowFishes[i].update(deltaTime);
+
+		if (!isInsideWalls(yellowFishes[i]))
+		{
+			yellowFishes[i].getSteering()->wanderOff();
+			yellowFishes[i].setTarget(glm::vec2(0.0f));
+			yellowFishes[i].getSteering()->arriveOn();
+		}
+		else if (!yellowFishes[i].getSteering()->isWanderOn())
+		{
+			yellowFishes[i].getSteering()->arriveOff();
+			yellowFishes[i].getSteering()->wanderOn();
+
+		}
+	}
+}
+
+void changeAquariumSize(float sizeRate)
+{
+	//left wall
+
+	if (walls[0].getPos().x + walls[0].getPos().x * sizeRate < -WINDOW_WIDTH / 2 || walls[0].getPos().x + walls[0].getPos().x * sizeRate > -200.0f)
+	{
+		return;
+	}
+	for (int i = 0; i < walls.size(); i++)
+	{
+		glm::vec2 newPos = glm::vec2(walls[i].getPos() + walls[i].getPos() * sizeRate);
+		glm::vec2 newScale = glm::vec2(walls[i].getScale() + walls[i].getScale() * sizeRate);
+
+		walls[i].setPos(newPos);
+		walls[i].setScale(newScale);
 	}
 }
 
@@ -278,20 +359,22 @@ void processInput()
 				glm::vec2 direction = mouseCoords - playerPosition;
 				direction = glm::normalize(direction);
 
-				//fishBullets.emplace_back(mouseCoords, direction, 2.0f, -1, "Textures/Fish/yellow_fish.png");
-				fishBullets.emplace_back(mouseCoords, randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 0.1f, 3.5f, PI, 3.0f, "Textures/Fish/yellow_fish.png");
-				//fishBullets.back().setTargetEntity(&blueFish);
-				//fishBullets.back().getSteering()->setOffset(glm::vec2(0.1f*i, 0.0f));
-				fishBullets.back().getSteering()->wanderOn();
+				//yellowFishes.emplace_back(mouseCoords, direction, 2.0f, -1, "Textures/Fish/yellow_fish.png");
+				yellowFishes.emplace_back(mouseCoords, randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 1.0f, 3.5f, PI, 32.0f, "Textures/Fish/yellow_fish.png");
+				//yellowFishes.back().setTargetEntity(&blueFish);
+				//yellowFishes.back().getSteering()->setOffset(glm::vec2(0.1f*i, 0.0f));
+				yellowFishes.back().getSteering()->wanderOn();
+				yellowFishes.back().getSteering()->setWalls(&walls);
+
 				
-				for (int i = 0; i < fishBullets.size(); i++)
+				for (int i = 0; i < yellowFishes.size(); i++)
 				{
 				
-					//fishBullets[i].getSteering()->setOffset(glm::vec2(32.0f, 0.0f));
-					fishBullets[i].getSteering()->setAgent(&fishBullets[i]);
+					//yellowFishes[i].getSteering()->setOffset(glm::vec2(32.0f, 0.0f));
+					yellowFishes[i].getSteering()->setAgent(&yellowFishes[i]);
 				}
 
-				/*blueFish.setTargetEntity(&fishBullets.front());
+				/*blueFish.setTargetEntity(&yellowFishes.front());
 				blueFish.getSteering()->evadeOn();*/
 			}
 
@@ -317,8 +400,24 @@ void processInput()
 			// zoom
 			std::cout << "scale: " << camera.getScale() + event.wheel.y * SCALE_SPEED << std::endl;
 			camera.setScale(camera.getScale() + event.wheel.y * SCALE_SPEED);
+			glm::vec2 pos(-WINDOW_WIDTH / (2 * camera.getScale()), -WINDOW_HEIGHT / (2 * camera.getScale()));
+			glm::vec2 scale(WINDOW_WIDTH / camera.getScale(), WINDOW_HEIGHT / camera.getScale());
+			glm::vec4 uv(0.0f, 0.0f, WINDOW_WIDTH / (480.0f * camera.getScale()), (float)WINDOW_HEIGHT / (480.0f * camera.getScale()));
+			background.init(pos, scale, "Textures/Background/Water.png", uv);
 
 			//std::cout << "yoffset: " << event.wheel.y << std::endl;
+		}
+		else if (event.type == SDL_KEYDOWN)
+		{
+			switch (event.key.keysym.sym)
+			{
+			case SDLK_KP_PLUS:
+				changeAquariumSize(0.1f);
+				break;
+			case SDLK_KP_MINUS:
+				changeAquariumSize(-0.1f);
+				break;
+			}
 		}
 
 	}
@@ -342,6 +441,7 @@ void processInput()
 	{
 		camera.setPosition(camera.getPosition() + glm::vec2(deltaTime * CAMERA_SPEED, 0.0f));
 	}
+
 
 }
 

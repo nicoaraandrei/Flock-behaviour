@@ -1,8 +1,48 @@
 #include "SteeringBehaviors.h"
 
 #include <glm/gtx/norm.hpp>
-#include <iostream>
+#include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/norm.hpp>
 
+#include <iostream>
+#include <limits>
+
+#define PI 3.14159
+
+bool LineIntersection2D(glm::vec2 A, glm::vec2 B, glm::vec2 C, glm::vec2 D,	float& dist, glm::vec2&  point)
+{
+
+	float rTop = (A.y - C.y)*(D.x - C.x) - (A.x - C.x)*(D.y - C.y);
+	float rBot = (B.x - A.x)*(D.y - C.y) - (B.y - A.y)*(D.x - C.x);
+
+	float sTop = (A.y - C.y)*(B.x - A.x) - (A.x - C.x)*(B.y - A.y);
+	float sBot = (B.x - A.x)*(D.y - C.y) - (B.y - A.y)*(D.x - C.x);
+
+	if ((rBot == 0) || (sBot == 0))
+	{
+		//lines are parallel
+		return false;
+	}
+
+	float r = rTop / rBot;
+	float s = sTop / sBot;
+
+	if ((r > 0) && (r < 1) && (s > 0) && (s < 1))
+	{
+		dist = glm::distance(A, B) * r;
+
+		point = A + r * (B - A);
+
+		return true;
+	}
+
+	else
+	{
+		dist = 0;
+
+		return false;
+	}
+}
 
 glm::vec2 pointToWorldSpace(const glm::vec2& point, const glm::vec2& agentHeading, const glm::vec2& agentSide, const glm::vec2& agentPosition)
 {
@@ -15,7 +55,7 @@ glm::vec2 pointToWorldSpace(const glm::vec2& point, const glm::vec2& agentHeadin
 	transformMat[1][1] = agentSide.y;
 	transformMat[2][0] = agentPosition.x;
 	transformMat[2][1] = agentPosition.y;
-	
+
 	transPoint = transformMat * transPoint;
 	transPoint.x += transformMat[2][0];
 	transPoint.y += transformMat[2][1];
@@ -31,16 +71,19 @@ float randomClamped() //return a float number between -1 and 1
 SteeringBehaviors::SteeringBehaviors(MovingEntity* agent)
 	: _agent(agent)
 {
-	_wanderJitter = 3.0f;
-	_wanderDistance = 35.0f;
-	_wanderRadius = 35.0f;
+	_wanderJitter = 40.0f;
+	_wanderDistance = 3.5f;
+	_wanderRadius = 2.0f;
+
+	_wallDetectionFeelerLength = 40.0f;
+	_feelers.resize(3);
 }
 
 SteeringBehaviors::~SteeringBehaviors()
 {
 }
 
-glm::vec2 SteeringBehaviors::seek(glm::vec2 targetPos)
+glm::vec2 SteeringBehaviors::seek(const glm::vec2 targetPos)
 {
 	glm::vec2 desiredVelocity = glm::normalize(targetPos - _agent->getPos()) * _agent->getMaxSpeed();
 	std::cout << (desiredVelocity - _agent->getVelocity()).x << "  " << (desiredVelocity - _agent->getVelocity()).y << std::endl;
@@ -48,7 +91,7 @@ glm::vec2 SteeringBehaviors::seek(glm::vec2 targetPos)
 	return (desiredVelocity - _agent->getVelocity());
 }
 
-glm::vec2 SteeringBehaviors::flee(glm::vec2 targetPos)
+glm::vec2 SteeringBehaviors::flee(const glm::vec2 targetPos)
 {
 	const float panicDistanceSq = 100.0f * 100.0f;
 	if (glm::distance2(_agent->getPos(), targetPos) > panicDistanceSq)
@@ -61,7 +104,7 @@ glm::vec2 SteeringBehaviors::flee(glm::vec2 targetPos)
 	return (desiredVelocity - _agent->getVelocity());
 }
 
-glm::vec2 SteeringBehaviors::arrive(glm::vec2 targetPos, Deceleration deceleration)
+glm::vec2 SteeringBehaviors::arrive(const glm::vec2 targetPos, Deceleration deceleration)
 {
 	glm::vec2 toTarget = targetPos - _agent->getPos();
 
@@ -85,7 +128,7 @@ glm::vec2 SteeringBehaviors::arrive(glm::vec2 targetPos, Deceleration decelerati
 	return glm::vec2(0.0f);
 }
 
-glm::vec2 SteeringBehaviors::pursuit(MovingEntity* evader)
+glm::vec2 SteeringBehaviors::pursuit(const MovingEntity* evader)
 {
 	glm::vec2 toEvader = evader->getPos() - _agent->getPos();
 
@@ -102,16 +145,16 @@ glm::vec2 SteeringBehaviors::pursuit(MovingEntity* evader)
 	return seek(evader->getPos() + evader->getVelocity() * lookAheadTime);
 }
 
-glm::vec2 SteeringBehaviors::evade(MovingEntity* pursuer)
+glm::vec2 SteeringBehaviors::evade(const MovingEntity* pursuer)
 {
 	glm::vec2 toPursuer = pursuer->getPos() - _agent->getPos();
-	
+
 	float lookAheadTime = glm::length(toPursuer) / (_agent->getMaxSpeed() + pursuer->getSpeed());
 
 	return flee(pursuer->getPos() + pursuer->getVelocity() * lookAheadTime);
 }
 
-glm::vec2 SteeringBehaviors::offsetPursuit(MovingEntity* leader, glm::vec2 offset)
+glm::vec2 SteeringBehaviors::offsetPursuit(const MovingEntity* leader, const glm::vec2 offset)
 {
 	glm::vec2 worldOffsetPos = pointToWorldSpace(offset, leader->getDirection(), leader->getSide(), leader->getPos());
 
@@ -134,34 +177,171 @@ glm::vec2 SteeringBehaviors::wander()
 	return targetWorld - _agent->getPos();
 }
 
+void SteeringBehaviors::createFeelers()
+{
+	//feeler pointing straight in front
+	_feelers[0] = _agent->getPos() + _wallDetectionFeelerLength * _agent->getDirection();
+
+	//feeler to the left
+	float angle = PI / 2 * 3.0f;
+	_feelers[1] = _agent->getPos() + _wallDetectionFeelerLength / 2.0f * glm::rotate(_agent->getDirection(), angle);
+
+	//feeler to the right
+	angle = PI / 2;
+	_feelers[2] = _agent->getPos() + _wallDetectionFeelerLength / 2.0f * glm::rotate(_agent->getDirection(), angle);
+}
+
+glm::vec2 SteeringBehaviors::wallAvoidance()
+{
+	createFeelers();
+
+	float distToThisIntersectionPoint = 0.0f;
+	float distToClosestIintersectionPoint = (std::numeric_limits<float>::max)();
+
+	int closestWall = -1;
+
+	glm::vec2 steeringForceTemp(0.0f);
+	glm::vec2 point(0.0f);
+	glm::vec2 closestPoint(0.0f);
+
+	for (int feelerIndex = 0; feelerIndex < _feelers.size(); feelerIndex++)
+	{
+		for (auto  wall = _walls->begin(); wall != _walls->end(); wall++)
+		{
+			glm::vec2 from = wall->getPos();
+			glm::vec2 scale = wall->getScale();
+			glm::vec2 to;
+			if (scale.x > scale.y)
+			{
+				to = glm::vec2(from.x + scale.x, from.y);
+			}
+			else
+			{
+				to = glm::vec2(from.x, from.y + scale.y);
+			}
+			if (LineIntersection2D(_agent->getPos(), _feelers[feelerIndex], from, to, distToThisIntersectionPoint, point))
+			{
+				if (distToThisIntersectionPoint < distToClosestIintersectionPoint)
+				{
+					distToClosestIintersectionPoint = distToThisIntersectionPoint;
+					closestWall = wall - _walls->begin();
+					closestPoint = point;
+				}
+			}
+		}
+
+		if (closestWall >= 0)
+		{
+			glm::vec2 overShoot = _feelers[feelerIndex] - closestPoint;
+			steeringForceTemp = _walls->at(closestWall).getNormals() * glm::length(overShoot);
+		}
+	}
+
+	return steeringForceTemp;
+}
+
+bool SteeringBehaviors::accumulateForce(glm::vec2 &totalForce, glm::vec2 forceToAdd)
+{
+	//calculate how much steering force the vehicle has used so far
+	float magnitudeSoFar = glm::length(totalForce);
+
+	//calculate how much steering force remains to be used by this vehicle
+	float magnitudeRemaining = _agent->getMaxForce() - magnitudeSoFar;
+
+	//return false if there is no more force left to use
+	if (magnitudeRemaining <= 0.0) return false;
+
+	//calculate the magnitude of the force we want to add
+	float magnitudeToAdd = glm::length(forceToAdd);
+
+	//if the magnitude of the sum of forceToAdd and the running total
+	//does not exceed the maximum force available to this vehicle, just
+	//add together. Otherwise add as much of the forceToAdd vector is
+	//possible without going over the max.
+	if (magnitudeToAdd < magnitudeRemaining)
+	{
+		totalForce += forceToAdd;
+	}
+
+	else
+	{
+		//add it to the steering force
+		totalForce += (glm::normalize(forceToAdd) * magnitudeRemaining);
+	}
+
+	return true;
+}
+
 glm::vec2 SteeringBehaviors::calculate()
 {
+	glm::vec2 force;
+
 	_steeringForce = glm::vec2(0.0f);
+
+
+	if (_walls)
+	{
+		force = wallAvoidance() * 10.0f;
+
+		if (glm::length(force) > 0.0f)
+		{
+			arriveOff();
+		}
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
+	}
+
 	if (_arriveOn)
 	{
-		_steeringForce += arrive(_agent->getTarget(), Deceleration::slow);
-		//_steeringForce += seek(_agent->getTarget());
-		//return flee(_agent->getTarget());
+		force = arrive(_agent->getTarget(), Deceleration::slow);
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
 	}
 
 	if (_pursuitOn && _agent->getTargetEntity())
 	{
-		_steeringForce += pursuit(_agent->getTargetEntity());
+		force = pursuit(_agent->getTargetEntity());
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
 	}
 
 	if (_evadeOn && _agent->getTargetEntity())
 	{
-		_steeringForce += evade(_agent->getTargetEntity());
+		force = evade(_agent->getTargetEntity());
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
 	}
 
 	if (_offsetPursuitOn)
 	{
-		_steeringForce += offsetPursuit(_agent->getTargetEntity(), _offset);
+		force = offsetPursuit(_agent->getTargetEntity(), _offset);
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
 	}
 
 	if (_wanderOn)
 	{
-		_steeringForce += wander();
+		force = wander();
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
 	}
 
 	if (glm::length(_steeringForce) > _agent->getMaxForce())
@@ -169,6 +349,7 @@ glm::vec2 SteeringBehaviors::calculate()
 		_steeringForce = glm::normalize(_steeringForce);
 		_steeringForce *= _agent->getMaxForce();
 	}
+
 
 	return _steeringForce;
 }
