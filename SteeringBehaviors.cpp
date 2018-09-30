@@ -77,6 +77,17 @@ SteeringBehaviors::SteeringBehaviors(MovingEntity* agent)
 
 	_wallDetectionFeelerLength = 40.0f;
 	_feelers.resize(3);
+
+	for (int i = 0; i < 11; i++)
+	{
+		weights[i] = 1.0f;
+	}
+
+	weights[SteeringStates::wallAvoidance] = 10.0f;
+	weights[SteeringStates::evade] = 0.1f;
+	weights[SteeringStates::cohesion] = 1.0f;
+
+	states[SteeringStates::wallAvoidance] = true;
 }
 
 SteeringBehaviors::~SteeringBehaviors()
@@ -86,7 +97,6 @@ SteeringBehaviors::~SteeringBehaviors()
 glm::vec2 SteeringBehaviors::seek(const glm::vec2 targetPos)
 {
 	glm::vec2 desiredVelocity = glm::normalize(targetPos - _agent->getPos()) * _agent->getMaxSpeed();
-	std::cout << (desiredVelocity - _agent->getVelocity()).x << "  " << (desiredVelocity - _agent->getVelocity()).y << std::endl;
 
 	return (desiredVelocity - _agent->getVelocity());
 }
@@ -239,6 +249,112 @@ glm::vec2 SteeringBehaviors::wallAvoidance()
 
 	return steeringForceTemp;
 }
+void SteeringBehaviors::tagNeighbors(float radius)
+{
+	for (auto currentAgent = _neighbors->begin(); currentAgent != _neighbors->end(); currentAgent++)
+	{
+		currentAgent->unTag();
+		
+		glm::vec2 to = currentAgent->getPos() - _agent->getPos();
+
+		float range = radius + currentAgent->getBRadius();
+
+		if (std::addressof(*currentAgent) != _agent && glm::length2(to) < range*range)
+		{
+			currentAgent->tag();
+		}
+
+	}
+}
+
+glm::vec2 SteeringBehaviors::separation()
+{
+	glm::vec2 steeringForce(0.0f);
+
+	for (auto currentAgent = _neighbors->begin(); currentAgent != _neighbors->end(); currentAgent++)
+	{
+		if (std::addressof(*currentAgent) != _agent && currentAgent->isTagged())
+		{
+			glm::vec2 toAgent = _agent->getPos() - currentAgent->getPos();
+
+			steeringForce += glm::normalize(toAgent) / glm::length(toAgent);
+		}
+	}
+
+	return steeringForce;
+}
+
+glm::vec2 SteeringBehaviors::alignment()
+{
+	glm::vec2 averageDirection(0.0f);
+	int neighborCount = 0;
+
+	for (auto currentAgent = _neighbors->begin(); currentAgent != _neighbors->end(); currentAgent++)
+	{
+		if (std::addressof(*currentAgent) != _agent && currentAgent->isTagged())
+		{
+			averageDirection += currentAgent->getDirection();
+			++neighborCount;
+		}
+	}
+
+	if (neighborCount > 0)
+	{
+		averageDirection /= (float)neighborCount;
+		averageDirection -= _agent->getDirection();
+	}
+
+	return averageDirection;
+}
+
+glm::vec2 SteeringBehaviors::cohesion()
+{
+	glm::vec2 centerOfMass(0.0f), steeringForce(0.0f);
+
+	int neighborCount = 0;
+
+	for (auto currentNeighbor = _neighbors->begin(); currentNeighbor != _neighbors->end(); currentNeighbor++)
+	{
+		if (std::addressof(*currentNeighbor) != _agent && currentNeighbor->isTagged())
+		{
+			centerOfMass += currentNeighbor->getPos();
+
+			++neighborCount;
+		}
+	}
+
+	if (neighborCount > 0)
+	{
+		centerOfMass /= (float)neighborCount;
+		steeringForce = seek(centerOfMass);
+	}
+
+	return steeringForce;
+}
+
+void SteeringBehaviors::noOverlap()
+{
+	glm::vec2 toAgent;
+	float distFromEachOther;
+	float amoutOfOverLap;
+
+	for (auto currentNeighbor = _neighbors->begin(); currentNeighbor != _neighbors->end(); currentNeighbor++)
+	{
+		if (std::addressof(*currentNeighbor) != _agent)
+		{
+			toAgent = _agent->getPos() - currentNeighbor->getPos();
+			distFromEachOther = glm::length(toAgent);
+
+			amoutOfOverLap = currentNeighbor->getBRadius() + _agent->getBRadius() - distFromEachOther;
+
+			if (amoutOfOverLap >= 0)
+			{
+				_agent->setPos(_agent->getPos() + (toAgent / distFromEachOther) * amoutOfOverLap);
+			}
+		}
+	}
+}
+
 
 bool SteeringBehaviors::accumulateForce(glm::vec2 &totalForce, glm::vec2 forceToAdd)
 {
@@ -274,18 +390,28 @@ bool SteeringBehaviors::accumulateForce(glm::vec2 &totalForce, glm::vec2 forceTo
 
 glm::vec2 SteeringBehaviors::calculate()
 {
-	glm::vec2 force;
+	glm::vec2 force(0.0f);
 
 	_steeringForce = glm::vec2(0.0f);
 
-
-	if (_walls)
+	/*if (_neighbors != NULL)
 	{
-		force = wallAvoidance() * 10.0f;
+		noOverlap();
+	}*/
 
-		if (glm::length(force) > 0.0f)
+	if ((states[SteeringStates::separation] || states[SteeringStates::alignment] || states[SteeringStates::cohesion]) && _neighbors != NULL)
+	{
+		tagNeighbors(50.0f);
+	}
+
+	if (states[SteeringStates::wallAvoidance])
+	{
+		force = wallAvoidance() * weights[SteeringStates::wallAvoidance];
+
+		//stop following target and move agent away from walls
+		if (glm::length(force) > 0.0f && states[SteeringStates::arrive])
 		{
-			arriveOff();
+			states[SteeringStates::arrive] = false;
 		}
 
 		if (!accumulateForce(_steeringForce, force))
@@ -294,9 +420,9 @@ glm::vec2 SteeringBehaviors::calculate()
 		}
 	}
 
-	if (_arriveOn)
+	if (states[SteeringStates::evade] && _agent->getTargetEntity() != NULL)
 	{
-		force = arrive(_agent->getTarget(), Deceleration::slow);
+		force = evade(_agent->getTargetEntity()) * weights[SteeringStates::evade];
 
 		if (!accumulateForce(_steeringForce, force))
 		{
@@ -304,9 +430,9 @@ glm::vec2 SteeringBehaviors::calculate()
 		}
 	}
 
-	if (_pursuitOn && _agent->getTargetEntity())
+	if (states[SteeringStates::flee])
 	{
-		force = pursuit(_agent->getTargetEntity());
+		force = flee(_agent->getTarget()) * weights[SteeringStates::flee];
 
 		if (!accumulateForce(_steeringForce, force))
 		{
@@ -314,9 +440,9 @@ glm::vec2 SteeringBehaviors::calculate()
 		}
 	}
 
-	if (_evadeOn && _agent->getTargetEntity())
+	if (states[SteeringStates::separation] && _neighbors != NULL)
 	{
-		force = evade(_agent->getTargetEntity());
+		force = separation() * weights[SteeringStates::flee];
 
 		if (!accumulateForce(_steeringForce, force))
 		{
@@ -324,9 +450,9 @@ glm::vec2 SteeringBehaviors::calculate()
 		}
 	}
 
-	if (_offsetPursuitOn)
+	if (states[SteeringStates::alignment] && _neighbors != NULL)
 	{
-		force = offsetPursuit(_agent->getTargetEntity(), _offset);
+		force = alignment() * weights[SteeringStates::flee];
 
 		if (!accumulateForce(_steeringForce, force))
 		{
@@ -334,15 +460,66 @@ glm::vec2 SteeringBehaviors::calculate()
 		}
 	}
 
-	if (_wanderOn)
+	if (states[SteeringStates::cohesion] && _neighbors != NULL)
 	{
-		force = wander();
+		force = cohesion() * weights[SteeringStates::flee];
 
 		if (!accumulateForce(_steeringForce, force))
 		{
 			return _steeringForce;
 		}
 	}
+
+	if (states[SteeringStates::seek])
+	{
+		force = seek(_agent->getTarget()) * weights[SteeringStates::seek];
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
+	}
+
+	if (states[SteeringStates::arrive])
+	{
+		force = arrive(_agent->getTarget(), Deceleration::slow) * weights[SteeringStates::arrive];
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
+	}
+
+	if (states[SteeringStates::wander])
+	{
+		force = wander() * weights[SteeringStates::wander];
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
+	}
+
+	if (states[SteeringStates::pursuit] && _agent->getTargetEntity() != NULL)
+	{
+		force = pursuit(_agent->getTargetEntity()) * weights[SteeringStates::pursuit];
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
+	}
+
+	if (states[SteeringStates::offsetPursuit] && _agent->getTargetEntity() != NULL)
+	{
+		force = offsetPursuit(_agent->getTargetEntity(), _offset) * weights[SteeringStates::offsetPursuit];
+
+		if (!accumulateForce(_steeringForce, force))
+		{
+			return _steeringForce;
+		}
+	}
+
 
 	if (glm::length(_steeringForce) > _agent->getMaxForce())
 	{

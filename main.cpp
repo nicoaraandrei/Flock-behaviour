@@ -121,6 +121,31 @@ void initShaders()
 	colorProgram.linkShaders();
 }
 
+void addYellowFish(const glm::vec2& startPos)
+{
+
+	//yellowFishes.emplace_back(mouseCoords, direction, 2.0f, -1, "Textures/Fish/yellow_fish.png");
+	yellowFishes.emplace_back(startPos, randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 1.0f, 3.5f, PI, 32.0f, "Textures/Fish/yellow_fish.png");
+	yellowFishes.back().setTargetEntity(&blueFish);
+	yellowFishes.back().getSteering()->setNeighbors(&yellowFishes);
+	yellowFishes.back().getSteering()->states[evade] = true;
+	yellowFishes.back().getSteering()->states[separation] = true;
+	yellowFishes.back().getSteering()->states[alignment] = true;
+	yellowFishes.back().getSteering()->states[cohesion] = true;
+	//yellowFishes.back().getSteering()->setOffset(glm::vec2(0.1f*i, 0.0f));
+	//yellowFishes.back().getSteering()->states[wander] = true;
+	yellowFishes.back().getSteering()->setWalls(&walls);
+
+	std::cout << "yellow fishes size: " << yellowFishes.size() << std::endl;
+
+	for (int i = 0; i < yellowFishes.size(); i++)
+	{
+
+		//yellowFishes[i].getSteering()->setOffset(glm::vec2(32.0f, 0.0f));
+		yellowFishes[i].getSteering()->setAgent(&yellowFishes[i]);
+	}
+}
+
 void initEntities()
 {
 
@@ -154,8 +179,13 @@ void initEntities()
 	//bottom wall
 	walls.emplace_back(glm::vec2(-WINDOW_WIDTH / 2, -WINDOW_HEIGHT / 2), glm::vec2(WINDOW_WIDTH, 20.0f), "Textures/Background/Glass.png");
 
-	blueFish.init(glm::vec2(0.0f, 0.0f), randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 1.0f, 3.7f, PI, 32.0f, "Textures/Fish/blue_fish.png");
+	blueFish.init(glm::vec2(0.0f, 0.0f), randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 1.0f, 3.7f, PI, 50.0f, "Textures/Fish/blue_fish.png");
 	blueFish.getSteering()->setWalls(&walls);
+
+	for (int i = 0; i < 300; i++)
+	{
+		addYellowFish(glm::vec2(5.0f + 0.01f*i , 5.0f));
+	}
 
 	spriteBatch.init();
 
@@ -305,14 +335,14 @@ void updateAgents(float deltaTime)
 
 		if (!isInsideWalls(yellowFishes[i]))
 		{
-			yellowFishes[i].getSteering()->wanderOff();
+			yellowFishes[i].getSteering()->states[wander] = false;
 			yellowFishes[i].setTarget(glm::vec2(0.0f));
-			yellowFishes[i].getSteering()->arriveOn();
+			yellowFishes[i].getSteering()->states[arrive] = true;
 		}
-		else if (!yellowFishes[i].getSteering()->isWanderOn())
+		else if (!yellowFishes[i].getSteering()->states[wander])
 		{
-			yellowFishes[i].getSteering()->arriveOff();
-			yellowFishes[i].getSteering()->wanderOn();
+			yellowFishes[i].getSteering()->states[arrive] = false;
+			yellowFishes[i].getSteering()->states[wander] = true;
 
 		}
 	}
@@ -322,10 +352,10 @@ void changeAquariumSize(float sizeRate)
 {
 	//left wall
 
-	if (walls[0].getPos().x + walls[0].getPos().x * sizeRate < -WINDOW_WIDTH / 2 || walls[0].getPos().x + walls[0].getPos().x * sizeRate > -200.0f)
-	{
-		return;
-	}
+	//if (walls[0].getPos().x + walls[0].getPos().x * sizeRate < -WINDOW_WIDTH / 2 || walls[0].getPos().x + walls[0].getPos().x * sizeRate > -200.0f)
+	//{
+	//	return;
+	//}
 	for (int i = 0; i < walls.size(); i++)
 	{
 		glm::vec2 newPos = glm::vec2(walls[i].getPos() + walls[i].getPos() * sizeRate);
@@ -335,6 +365,8 @@ void changeAquariumSize(float sizeRate)
 		walls[i].setScale(newScale);
 	}
 }
+
+
 
 void processInput()
 {
@@ -350,32 +382,12 @@ void processInput()
 			Mouse::updateButton(event.button.button, event.type, event.motion.x, event.motion.y);
 			if (Mouse::left_isPressed())
 			{
-				// add a new fish
+
 				glm::vec2 mouseCoords = glm::vec2(Mouse::getX(), Mouse::getY());
 				mouseCoords = camera.convertScreenToWorld(mouseCoords);
 				std::cout << mouseCoords.x << "  " << mouseCoords.y << std::endl;
 
-				glm::vec2 playerPosition(0.0f);
-				glm::vec2 direction = mouseCoords - playerPosition;
-				direction = glm::normalize(direction);
-
-				//yellowFishes.emplace_back(mouseCoords, direction, 2.0f, -1, "Textures/Fish/yellow_fish.png");
-				yellowFishes.emplace_back(mouseCoords, randomFloat() * 2 * PI, glm::vec2(0.0f, 0.0f), 1.0f, 1.0f, 3.5f, PI, 32.0f, "Textures/Fish/yellow_fish.png");
-				//yellowFishes.back().setTargetEntity(&blueFish);
-				//yellowFishes.back().getSteering()->setOffset(glm::vec2(0.1f*i, 0.0f));
-				yellowFishes.back().getSteering()->wanderOn();
-				yellowFishes.back().getSteering()->setWalls(&walls);
-
-				
-				for (int i = 0; i < yellowFishes.size(); i++)
-				{
-				
-					//yellowFishes[i].getSteering()->setOffset(glm::vec2(32.0f, 0.0f));
-					yellowFishes[i].getSteering()->setAgent(&yellowFishes[i]);
-				}
-
-				/*blueFish.setTargetEntity(&yellowFishes.front());
-				blueFish.getSteering()->evadeOn();*/
+				addYellowFish(mouseCoords);
 			}
 
 			if (Mouse::right_isPressed())
@@ -388,7 +400,7 @@ void processInput()
 				direction = glm::normalize(direction);
 
 				blueFish.setTarget(mouseCoords);
-				blueFish.getSteering()->arriveOn();
+				blueFish.getSteering()->states[arrive] = true;
 			}
 		}
 		else if (event.type == SDL_MOUSEBUTTONUP)
@@ -421,6 +433,8 @@ void processInput()
 		}
 
 	}
+
+
 
 	const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
 

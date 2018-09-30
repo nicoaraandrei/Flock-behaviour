@@ -21,9 +21,9 @@ public:
 
 	void setScale(float newScale)
 	{
-		if (newScale < 0.5f)
+		if (newScale < 0.1f)
 		{
-			_scale = 0.5f;
+			_scale = 0.1f;
 		}
 		else if (newScale > 4.0f)
 		{
