@@ -130,7 +130,6 @@ glm::vec2 SteeringBehaviors::arrive(const glm::vec2 targetPos, Deceleration dece
 		speed = std::min(speed, _agent->getMaxSpeed());
 
 		glm::vec2 desiredVelocity = toTarget * speed / dist;
-		//std::cout << (desiredVelocity - _agent->getVelocity()).x << "  "<< (desiredVelocity - _agent->getVelocity()).y << std::endl;
 		return (desiredVelocity - _agent->getVelocity());
 	}
 

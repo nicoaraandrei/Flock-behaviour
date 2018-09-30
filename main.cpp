@@ -136,7 +136,7 @@ void addYellowFish(const glm::vec2& startPos)
 	//yellowFishes.back().getSteering()->states[wander] = true;
 	yellowFishes.back().getSteering()->setWalls(&walls);
 
-	std::cout << "yellow fishes size: " << yellowFishes.size() << std::endl;
+	std::cout << "yellow fishes number: " << yellowFishes.size() << std::endl;
 
 	for (int i = 0; i < yellowFishes.size(); i++)
 	{
@@ -385,7 +385,6 @@ void processInput()
 
 				glm::vec2 mouseCoords = glm::vec2(Mouse::getX(), Mouse::getY());
 				mouseCoords = camera.convertScreenToWorld(mouseCoords);
-				std::cout << mouseCoords.x << "  " << mouseCoords.y << std::endl;
 
 				addYellowFish(mouseCoords);
 			}
@@ -394,7 +393,6 @@ void processInput()
 			{
 				glm::vec2 mouseCoords = glm::vec2(Mouse::getX(), Mouse::getY());
 				mouseCoords = camera.convertScreenToWorld(mouseCoords);
-				//std::cout << mouseCoords.x << "  " << mouseCoords.y << std::endl;
 
 				glm::vec2 direction = mouseCoords - blueFish.getPos();
 				direction = glm::normalize(direction);
@@ -410,14 +408,11 @@ void processInput()
 		else if (event.type == SDL_MOUSEWHEEL)
 		{
 			// zoom
-			std::cout << "scale: " << camera.getScale() + event.wheel.y * SCALE_SPEED << std::endl;
 			camera.setScale(camera.getScale() + event.wheel.y * SCALE_SPEED);
 			glm::vec2 pos(-WINDOW_WIDTH / (2 * camera.getScale()), -WINDOW_HEIGHT / (2 * camera.getScale()));
 			glm::vec2 scale(WINDOW_WIDTH / camera.getScale(), WINDOW_HEIGHT / camera.getScale());
 			glm::vec4 uv(0.0f, 0.0f, WINDOW_WIDTH / (480.0f * camera.getScale()), (float)WINDOW_HEIGHT / (480.0f * camera.getScale()));
 			background.init(pos, scale, "Textures/Background/Water.png", uv);
-
-			//std::cout << "yoffset: " << event.wheel.y << std::endl;
 		}
 		else if (event.type == SDL_KEYDOWN)
 		{

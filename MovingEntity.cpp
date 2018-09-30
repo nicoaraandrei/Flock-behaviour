@@ -86,7 +86,6 @@ void MovingEntity::update(float deltaTime)
 
 	_position += _velocity * deltaTime;
 
-	//std::cout << glm::length2(_velocity) << std::endl;
 	if (glm::length2(_velocity) > 0.000001f)
 	{
 		_direction = glm::normalize(_velocity);
@@ -94,22 +93,7 @@ void MovingEntity::update(float deltaTime)
 		_side = glm::vec2(-_direction.y, _direction.x);
 	}
 
-	//_position += _direction * _velocity * deltaTime;
 	_animTime += glm::length(_velocity)/30.0f * deltaTime;
-
-	//if ((_position.x > 400.0f && _direction.x > 0.0f)|| (_position.x < -400.0f && _direction.x < 0.0f))
-	//{
-	//	_direction.x *= -1;
-	//	_side.y *= -1;
-
-	//}
-	//
-	//if ((_position.y > 300.0f && _direction.y > 0.0f) || (_position.y < -300.0f && _direction.y < 0.0f))
-	//{
-	//	_direction.y *= -1;
-	//	_side.x *= -1;
-	//}
-
 }
 
 
