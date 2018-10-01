@@ -6,9 +6,9 @@ SDL is used for window creation and input support, GLEW for OpenGL context, GLM 
 ![](demo.gif)
 
 Prerequisites:
-SDL - https://www.libsdl.org/download-2.0.php
-GLEW - http://glew.sourceforge.net/
-GLM - https://glm.g-truc.net/0.9.9/index.html
+- SDL - https://www.libsdl.org/download-2.0.php
+- GLEW - http://glew.sourceforge.net/
+- GLM - https://glm.g-truc.net/0.9.9/index.html
 
 Controls:
 - Right click to move the blue fish(predator)
