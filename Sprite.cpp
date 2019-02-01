@@ -63,7 +63,7 @@ void Sprite::init(float x, float y, float width, float height, std::string textu
 
 	for (int i = 0; i < 6; i++)
 	{
-		vertexData[1].setColor(255, 255, 255, 255);
+		vertexData[i].setColor(255, 255, 255, 255);
 	}
 
 	//vertexData[1].setColor(0, 0, 255, 255);
